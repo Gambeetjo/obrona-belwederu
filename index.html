@@ -725,10 +725,10 @@
             e.preventDefault();
             let startT = performance.now();
             anim = setInterval(() => {
-                let p = Math.min(100, ((performance.now() - startT) / 3000) * 100);
+                let p = Math.min(100, ((performance.now() - startT) / 1000) * 100);
                 el.style.setProperty('--hold-progress', p + '%');
             }, 30);
-            timer = setTimeout(() => { stop(); callback(); }, 3000);
+            timer = setTimeout(() => { stop(); callback(); }, 1000);
         };
         const stop = () => {
             clearTimeout(timer); clearInterval(anim);
@@ -755,13 +755,13 @@
       }).sort(() => Math.random() - 0.5).slice(0, 3);
       if (available.length === 0) {
           const card = document.createElement('div'); card.className = 'bonus-card';
-          card.innerHTML = `<strong>Kromka Chleba</strong><small>Leczy 50 HP.</small><small style="color:var(--gold); margin-top:10px;">(Przytrzymaj 3s)</small>`;
+          card.innerHTML = `<strong>Kromka Chleba</strong><small>Leczy 50 HP.</small><small style="color:var(--gold); margin-top:10px;">(Przytrzymaj 1s)</small>`;
           makeHoldable(card, () => { player.hp = Math.min(player.maxHp, player.hp + 50); resumeGame(); });
           container.appendChild(card); return;
       }
       available.forEach(bonus => {
         const card = document.createElement('div'); card.className = 'bonus-card';
-        card.innerHTML = `<strong>${bonus.name} (Lvl ${bonus.level+1}/${bonus.max})</strong><small>${bonus.desc}</small><small style="color:var(--gold); margin-top:10px;">(Przytrzymaj 3s)</small>`;
+        card.innerHTML = `<strong>${bonus.name} (Lvl ${bonus.level+1}/${bonus.max})</strong><small>${bonus.desc}</small><small style="color:var(--gold); margin-top:10px;">(Przytrzymaj 1s)</small>`;
         makeHoldable(card, () => { bonus.level++; bonus.apply(); resumeGame(); }); container.appendChild(card);
       });
     }
@@ -1333,7 +1333,7 @@
     });
 
     document.getElementById('play-btn').onclick = initGame; 
-    document.getElementById('restart-btn').innerHTML = "Zagraj Ponownie<br><small style='font-size:12px; color:var(--cream)'>(Przytrzymaj 3s)</small>";
+    document.getElementById('restart-btn').innerHTML = "Zagraj Ponownie<br><small style='font-size:12px; color:var(--cream)'>(Przytrzymaj 1s)</small>";
     makeHoldable(document.getElementById('restart-btn'), initGame);
     document.getElementById('resume-btn').onclick = resumeGame;
     animate();
