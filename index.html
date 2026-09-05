@@ -110,8 +110,8 @@
       <h1>Obrona Belwederu 3D</h1>
       <p>Broń domku przed hordami Mopsów, Gimbusów i Listonoszów!</p>
       <div style="text-align: left; background: rgba(0,0,0,0.5); padding: 15px; margin: 15px 0; border-radius: 8px; font-size: 16px; line-height: 1.5; color: white;">
-        <strong style="color:white">🖥️ PC:</strong> Steruj klawiszami <strong>WASD</strong>. Atakuj klikając <strong>ENTER</strong>.<br>
-        <strong style="color:white">📱 Telefon:</strong> Poruszaj się <strong>Joystickiem</strong> (dotknij ekranu). Atakuj dotykając <strong>w dowolnym miejscu</strong>.
+        <strong style="color:white">🖥️ PC:</strong> Steruj klawiszami <strong>WASD</strong>. Atak odbywa się <strong>automatycznie</strong>.<br>
+        <strong style="color:white">📱 Telefon:</strong> Poruszaj się <strong>Joystickiem</strong> (dotknij gdziekolwiek). Atak odbywa się <strong>automatycznie</strong>.
       </div>
       <button class="btn" id="play-btn">Rozpocznij Grę</button>
     </div>
@@ -317,7 +317,6 @@
     let wave = 1; let score = 0; let xp = 0; let level = 1; let xpNeeded = 3; let waveTimer = 0; let pickupTimer = 0;
     let finalBossDefeated = false; let aoeAttacks = []; let ambulance = null; let endingSequence = false;
     const keys = { w:false, a:false, s:false, d:false }; let joystick = { active: false, x: 0, y: 0 };
-    let attackRequested = false;
 
     const upgradesPool = [
       { id: 'dmg', name: 'Ostra Kulacha', desc: 'Obrażenia bazowe +15.', level: 0, max: 4, minLevel: 1, apply: () => player.dmg += 15 },
@@ -881,8 +880,7 @@
 
       // Atak Gracza
       player.attackTimer -= dt;
-      if (player.attackTimer <= 0 && attackRequested) {
-        attackRequested = false;
+      if (player.attackTimer <= 0) {
         let searchRange = player.attackRange;
         let closestDist = searchRange; let targetEnemy = null;
         enemies.forEach(e => {
@@ -1269,7 +1267,6 @@
     window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     document.addEventListener('keydown', e => {
       const k = e.key.toLowerCase(); if (keys.hasOwnProperty(k)) keys[k] = true;
-      if (k === 'enter') attackRequested = true;
       if ((k === 'p' || k === 'escape') && gameState === 'playing') { gameState = 'paused'; document.getElementById('pause-screen').classList.remove('hidden'); }
       else if ((k === 'p' || k === 'escape') && gameState === 'paused') resumeGame();
     });
@@ -1282,7 +1279,6 @@
             if (!joystick.active) {
                 joystick.active = true; joystickTouchId = e.changedTouches[i].identifier; touchStartX = e.changedTouches[i].clientX; touchStartY = e.changedTouches[i].clientY; joystick.x = 0; joystick.y = 0;
             }
-            attackRequested = true;
         }
     }, {passive: false});
     bodyEl.addEventListener('touchmove', e => {
