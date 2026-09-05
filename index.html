@@ -56,6 +56,14 @@
     h1 { color: var(--gold); font-size: 32px; text-shadow: 3px 3px 0 #000; margin-bottom: 5px; }
     p { margin-bottom: 20px; font-size: 14px; line-height: 1.5; max-width: 600px; color: var(--cream); }
     .hud-box { pointer-events: auto; }
+    .holdable { position: relative; overflow: hidden; user-select: none; -webkit-touch-callout: none; cursor: pointer; }
+    .holdable::before {
+      content: ""; position: absolute; top: 0; left: 0; bottom: 0;
+      width: var(--hold-progress, 0%);
+      background: rgba(255, 255, 255, 0.4);
+      z-index: 0; pointer-events: none;
+    }
+    .holdable > * { position: relative; z-index: 1; pointer-events: none; }
 
     @media (max-width: 768px) {
       #hud { font-size: 11px; top: 5px; left: 5px; right: 5px; }
@@ -708,6 +716,32 @@
       if (xp >= xpNeeded) { xp -= xpNeeded; level++; xpNeeded = Math.floor(xpNeeded * 1.35); showLevelUpScreen(); }
     }
 
+    function makeHoldable(el, callback) {
+        let timer, anim;
+        el.classList.add('holdable');
+        el.style.setProperty('--hold-progress', '0%');
+        const start = (e) => {
+            if(e.type === 'mousedown' && e.button !== 0) return;
+            e.preventDefault();
+            let startT = performance.now();
+            anim = setInterval(() => {
+                let p = Math.min(100, ((performance.now() - startT) / 3000) * 100);
+                el.style.setProperty('--hold-progress', p + '%');
+            }, 30);
+            timer = setTimeout(() => { stop(); callback(); }, 3000);
+        };
+        const stop = () => {
+            clearTimeout(timer); clearInterval(anim);
+            el.style.setProperty('--hold-progress', '0%');
+        };
+        el.addEventListener('mousedown', start);
+        el.addEventListener('touchstart', start, {passive: false});
+        el.addEventListener('mouseup', stop);
+        el.addEventListener('mouseleave', stop);
+        el.addEventListener('touchend', stop);
+        el.addEventListener('touchcancel', stop);
+    }
+
     function showLevelUpScreen() {
       gameState = 'levelup'; document.getElementById('levelup-screen').classList.remove('hidden');
       const container = document.getElementById('bonus-cards'); container.innerHTML = '';
@@ -721,14 +755,14 @@
       }).sort(() => Math.random() - 0.5).slice(0, 3);
       if (available.length === 0) {
           const card = document.createElement('div'); card.className = 'bonus-card';
-          card.innerHTML = `<strong>Kromka Chleba</strong><small>Leczy 50 HP.</small>`;
-          card.onclick = () => { player.hp = Math.min(player.maxHp, player.hp + 50); resumeGame(); };
+          card.innerHTML = `<strong>Kromka Chleba</strong><small>Leczy 50 HP.</small><small style="color:var(--gold); margin-top:10px;">(Przytrzymaj 3s)</small>`;
+          makeHoldable(card, () => { player.hp = Math.min(player.maxHp, player.hp + 50); resumeGame(); });
           container.appendChild(card); return;
       }
       available.forEach(bonus => {
         const card = document.createElement('div'); card.className = 'bonus-card';
-        card.innerHTML = `<strong>${bonus.name} (Lvl ${bonus.level+1}/${bonus.max})</strong><small>${bonus.desc}</small>`;
-        card.onclick = () => { bonus.level++; bonus.apply(); resumeGame(); }; container.appendChild(card);
+        card.innerHTML = `<strong>${bonus.name} (Lvl ${bonus.level+1}/${bonus.max})</strong><small>${bonus.desc}</small><small style="color:var(--gold); margin-top:10px;">(Przytrzymaj 3s)</small>`;
+        makeHoldable(card, () => { bonus.level++; bonus.apply(); resumeGame(); }); container.appendChild(card);
       });
     }
 
@@ -1298,7 +1332,10 @@
         }
     });
 
-    document.getElementById('play-btn').onclick = initGame; document.getElementById('restart-btn').onclick = initGame; document.getElementById('resume-btn').onclick = resumeGame;
+    document.getElementById('play-btn').onclick = initGame; 
+    document.getElementById('restart-btn').innerHTML = "Zagraj Ponownie<br><small style='font-size:12px; color:var(--cream)'>(Przytrzymaj 3s)</small>";
+    makeHoldable(document.getElementById('restart-btn'), initGame);
+    document.getElementById('resume-btn').onclick = resumeGame;
     animate();
   </script>
 </body>
