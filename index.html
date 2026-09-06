@@ -686,30 +686,30 @@
     }
 
     function initGame() {
-      document.getElementById('start-screen').classList.add('hidden'); document.getElementById('death-screen').classList.add('hidden');
-      document.getElementById('hud').classList.remove('hidden'); document.getElementById('pause-screen').classList.add('hidden');
+      document.getElementById('start-screen').classList.add('hidden'); 
+      document.getElementById('gameover-screen').classList.add('hidden');
+      document.getElementById('pause-screen').classList.add('hidden');
+      document.getElementById('hud').classList.remove('hidden');
+      
       enemies.forEach(e => scene.remove(e.mesh)); enemies = [];
       projectiles.forEach(p => scene.remove(p.mesh)); projectiles = [];
       pickups.forEach(p => scene.remove(p.mesh)); pickups = [];
-      house.hp = 150; house.maxHp = 150; house.lastHitTime = 0; house.regenRate = 5; house.armor = 0; house.spikeDmg = 0;
       flyingMilks.forEach(fm => scene.remove(fm.mesh)); flyingMilks = [];
       flyingNitros.forEach(fn => scene.remove(fn.mesh)); flyingNitros = [];
-      if (policeCar) { scene.remove(policeCar.mesh); policeCar = null; }
-      if (ambulance) { scene.remove(ambulance.mesh); ambulance = null; }
       aoeAttacks.forEach(a => { scene.remove(a.marker); if (a.cameraMesh) scene.remove(a.cameraMesh); }); aoeAttacks = [];
       
-      if(player.mesh) scene.remove(player.mesh);
+      if (policeCar) { scene.remove(policeCar.mesh); policeCar = null; }
+      if (ambulance) { scene.remove(ambulance.mesh); ambulance = null; }
+      if (player.mesh) scene.remove(player.mesh);
       
       player = createPlayer(); updateRangeIndicator(); player.coalLevel = 0;
-      house.hp = 100; house.maxHp = 100; house.lastHitTime = 0; house.armor = 0;
+      house.hp = 150; house.maxHp = 150; house.lastHitTime = 0; house.regenRate = 5; house.armor = 0; house.spikeDmg = 0;
       wave = 1; score = 0; xp = 0; level = 1; xpNeeded = 3; waveTimer = 0; pickupTimer = 0; coalTimer = 0;
       player.regenTimer = 0; player.rainTimer = 0; 
       finalBossDefeated = false; endingSequence = false;
       upgradesPool.forEach(u => u.level = 0); updateUI();
       
       gameState = 'playing'; lastTime = performance.now();
-      document.getElementById('start-screen').classList.add('hidden'); document.getElementById('gameover-screen').classList.add('hidden');
-      document.getElementById('hud').classList.remove('hidden');
     }
 
     function checkLevelUp() {
