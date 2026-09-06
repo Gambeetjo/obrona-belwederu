@@ -505,8 +505,7 @@
       
       let radius = (type === 'boss' || type === 'mexicano' || type === 'jan_l') ? 12 : (type === 'final_boss' ? 24 : (type === 'tank' ? 10 : 6));
       let kbMult = 1.0;
-      if (type === 'boss' || type === 'mexicano' || type === 'jan_l') kbMult = 0.5;
-      if (type === 'final_boss') kbMult = 0.02; // Jeszcze mniejszy odrzut dla Srradka
+      if (['boss', 'mexicano', 'jan_l', 'final_boss'].includes(type)) kbMult = 0;
       
       enemies.push({ mesh, type, x, z, hp, maxHp: hp, speed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult });
     }
@@ -686,12 +685,13 @@
         ambulance = { mesh: group, active: true, step: 0, timer: 0 };
     }
 
-    // --- LOGIKA GRY ---
     function initGame() {
+      document.getElementById('start-screen').classList.add('hidden'); document.getElementById('death-screen').classList.add('hidden');
+      document.getElementById('hud').classList.remove('hidden'); document.getElementById('pause-screen').classList.add('hidden');
       enemies.forEach(e => scene.remove(e.mesh)); enemies = [];
-      particles.forEach(p => scene.remove(p.mesh)); particles = [];
       projectiles.forEach(p => scene.remove(p.mesh)); projectiles = [];
       pickups.forEach(p => scene.remove(p.mesh)); pickups = [];
+      house.hp = 150; house.maxHp = 150; house.lastHitTime = 0; house.regenRate = 5; house.armor = 0; house.spikeDmg = 0;
       flyingMilks.forEach(fm => scene.remove(fm.mesh)); flyingMilks = [];
       flyingNitros.forEach(fn => scene.remove(fn.mesh)); flyingNitros = [];
       if (policeCar) { scene.remove(policeCar.mesh); policeCar = null; }
@@ -942,11 +942,9 @@
                         e.z += dirToE.y * player.knockback * (e.knockbackMult !== undefined ? e.knockbackMult : 1.0);
                         spawnParticles(e.x, e.z, mats.blood);
                     }
+                    }
                 }
             });
-        } else {
-            // Zamach w powietrze
-            player.isAttacking = true; player.attackAnimTimer = 0.3; player.attackTimer = player.attackCooldown;
         }
       }
 
@@ -1063,7 +1061,15 @@
 
         if (e.hp <= 0) {
           const isAnyBoss = ['boss', 'final_boss', 'mexicano', 'jan_l'].includes(e.type);
-          score += (isAnyBoss ? 100 : 10); xp += (isAnyBoss ? 10 : 2);
+          score += (isAnyBoss ? 100 : 10);
+          
+          let xpGain = 1;
+          if (e.type === 'runner') xpGain = 2;
+          else if (e.type === 'tank') xpGain = 3;
+          else if (e.type === 'thrower') xpGain = 4;
+          if (isAnyBoss) xpGain = xpNeeded;
+          xp += xpGain;
+          
           spawnParticles(e.x, e.z, e.mesh.children[0].material);
           if (e.type === 'final_boss') {
               finalBossDefeated = true;
@@ -1110,6 +1116,18 @@
                 scene.add(cameraGroup);
                 
                 aoeAttacks.push({ x: player.x, z: player.z, timer: 2.0, maxTime: 2.0, marker: marker, cameraMesh: cameraGroup, radius: 15, dmg: 50 });
+            }
+        }
+        
+        if (e.type === 'jan_l') {
+            e.skillTimer = (e.skillTimer || 0) - dt;
+            if (e.skillTimer <= 0) {
+                e.skillTimer = 5;
+                const pMesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 4, 8), new THREE.MeshStandardMaterial({color: 0x2e8b57, transparent: true, opacity: 0.8}));
+                pMesh.rotation.x = Math.PI / 2;
+                scene.add(pMesh);
+                const dir = new THREE.Vector2(0 - e.x, 0 - e.z).normalize();
+                projectiles.push({ mesh: pMesh, x: e.x, z: e.z, vx: dir.x*60, vz: dir.y*60, dmg: 10, target: 'house', life: 3.0 });
             }
         }
 
