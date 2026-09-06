@@ -340,7 +340,7 @@
       { id: 'lifesteal', name: 'Pisanie zawiadomień na trójeczke', desc: 'Leczy 2 HP przy ataku.', level: 0, max: 2, minLevel: 5, apply: () => { player.lifesteal = (player.lifesteal || 0) + 2; } },
       { id: 'houseArmor', name: 'Mur wyrzszy od mego', desc: 'Domek dostaje -15% dmg.', level: 0, max: 3, minLevel: 4, apply: () => { house.armor = (house.armor || 0) + 0.15; } },
       { id: 'flyingMilk', name: 'Latające Mleczko Boże', desc: 'Mleczko krąży i rani wrogów.', level: 0, max: 4, minLevel: 2, apply: () => { spawnFlyingMilk(); } },
-      { id: 'nitro', name: 'Rozpuszczalnik Nitro', desc: 'Butelki krążą jeszcze dalej.', level: 0, max: 2, minLevel: 1, apply: () => { spawnNitro(); } },
+      { id: 'nitro', name: 'Rozpuszczalnik Nitro', desc: 'Butelki krążą jeszcze dalej.', level: 0, max: 2, minLevel: 10, apply: () => { spawnNitro(); } },
       { id: 'coal', name: 'Rzut Węglem', desc: 'Automatycznie rzuca węglem we wrogów.', level: 0, max: 4, minLevel: 1, apply: () => { player.coalLevel = (player.coalLevel || 0) + 1; } },
       { id: 'selfRegen', name: 'Zupka Chińska', desc: 'Regeneracja HP co kilka sekund.', level: 0, max: 3, minLevel: 5, apply: () => { player.selfRegenLevel = (player.selfRegenLevel || 0) + 1; } },
       { id: 'rainOfGifts', name: 'Deszcz Darów Bożych', desc: 'Zrzut paczek na skupisko wrogów.', level: 0, max: 3, minLevel: 10, apply: () => { player.rainLevel = (player.rainLevel || 0) + 1; } }
@@ -560,7 +560,7 @@
         body.scale.set(2, 5, 2); body.position.y = 2.5; body.castShadow = true;
         group.add(body);
         
-        flyingNitros.push({ mesh: group, angle: 0, radius: 23.8, dmg: 25 });
+        flyingNitros.push({ mesh: group, angle: 0, radius: 27.5, dmg: 25 });
         for(let i=0; i<flyingNitros.length; i++) flyingNitros[i].angle = i * (Math.PI * 2 / flyingNitros.length);
         scene.add(group);
     }
@@ -747,10 +747,6 @@
       const container = document.getElementById('bonus-cards'); container.innerHTML = '';
       let available = upgradesPool.filter(u => {
           if (u.level >= u.max || level < u.minLevel) return false;
-          if (u.id === 'nitro') {
-              const milkUpgrade = upgradesPool.find(up => up.id === 'flyingMilk');
-              return milkUpgrade && milkUpgrade.level >= milkUpgrade.max;
-          }
           return true;
       }).sort(() => Math.random() - 0.5).slice(0, 3);
       if (available.length === 0) {
