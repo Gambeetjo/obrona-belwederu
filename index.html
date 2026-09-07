@@ -134,6 +134,44 @@
       animation: trailFade 2s forwards;
     }
     @keyframes trailFade { to { opacity: 0; transform: scale(1.5); } }
+    .speech-bubble {
+      position: absolute;
+      background: rgba(255, 255, 240, 0.95);
+      color: #111;
+      border: 2px solid #222;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-family: 'Press Start 2P', monospace;
+      font-weight: bold;
+      pointer-events: none;
+      z-index: 100;
+      white-space: nowrap;
+      box-shadow: 2px 2px 0px #000;
+      transform: translate(-50%, -100%);
+      transition: opacity 0.3s;
+    }
+    #house-warning {
+      position: absolute;
+      top: 15%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(200, 0, 0, 0.85);
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-family: 'Press Start 2P', monospace;
+      border: 2px solid #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 15px #ff0000;
+      animation: blinkWarning 0.6s infinite alternate;
+      z-index: 105;
+      pointer-events: none;
+    }
+    @keyframes blinkWarning {
+      0% { opacity: 0.3; transform: translateX(-50%) scale(0.95); }
+      100% { opacity: 1.0; transform: translateX(-50%) scale(1.05); }
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -164,6 +202,7 @@
       </div>
       <div id="combo-display" class="hidden"></div>
       <div id="boss-arrow" class="hidden"></div>
+      <div id="house-warning" class="hidden">⚠️ BELWEDER ZAGROŻONY! ⚠️</div>
     </header>
 
 
@@ -449,7 +488,12 @@
       { id: 'flyingNitro', name: 'Butelka Nitro Boża', desc: 'Nitro krąży 15% dalej od mleka i mocno rani wrogów.', level: 0, max: 4, minLevel: 10, apply: () => { spawnFlyingNitro(); } },
       { id: 'coal', name: 'Rzut Węglem', desc: 'Automatycznie rzuca węglem we wrogów.', level: 0, max: 4, minLevel: 1, apply: () => { player.coalLevel = (player.coalLevel || 0) + 1; } },
       { id: 'selfRegen', name: 'Zupka Chińska', desc: 'Regeneracja HP co kilka sekund.', level: 0, max: 3, minLevel: 5, apply: () => { player.selfRegenLevel = (player.selfRegenLevel || 0) + 1; } },
-      { id: 'rainOfGifts', name: 'Deszcz Darów Bożych', desc: 'Zrzut paczek na skupisko wrogów.', level: 0, max: 3, minLevel: 10, apply: () => { player.rainLevel = (player.rainLevel || 0) + 1; } }
+      { id: 'rainOfGifts', name: 'Deszcz Darów Bożych', desc: 'Zrzut paczek na skupisko wrogów.', level: 0, max: 3, minLevel: 10, apply: () => { player.rainLevel = (player.rainLevel || 0) + 1; } },
+      { id: 'fencePulse', name: 'Pancerne Cegły (Fala Uderzeniowa)', desc: 'Domek co 5s emituje falę odpychającą i raniącą wrogów.', level: 0, max: 3, minLevel: 2, apply: () => { house.pulseLevel = (house.pulseLevel || 0) + 1; } },
+      { id: 'fireShovel', name: 'Piekielna Kulacha', desc: 'Ataki podpalają wrogów na 3s (obrażenia w czasie).', level: 0, max: 3, minLevel: 3, apply: () => { player.fireLevel = (player.fireLevel || 0) + 1; } },
+      { id: 'magnet', name: 'Magnes na Dary Boż', desc: 'Przyciąga apteczki i mleczka z dużej odległości.', level: 0, max: 2, minLevel: 1, apply: () => { player.magnetRadius = (player.magnetRadius || 50) + 80; } },
+      { id: 'vampiricMilk', name: 'Mleczna Tarcza', desc: 'Absorbuje 25% przyjmowanych obrażeń.', level: 0, max: 2, minLevel: 4, apply: () => { player.shieldLevel = (player.shieldLevel || 0) + 0.25; } },
+      { id: 'explosiveCoal', name: 'Wybuchowy Węgiel', desc: 'Rzucany węgiel wywołuje eksplozję obszarową.', level: 0, max: 3, minLevel: 6, apply: () => { player.explosiveCoal = (player.explosiveCoal || 0) + 1; } }
     ];
 
     // --- GRACZ ---
@@ -624,34 +668,76 @@
       showBossIntro(type);
     }
 
-    function showBossIntro(type) {
-      if (type !== 'boss' && type !== 'final_boss' && type !== 'janol' && type !== 'mexicano' && type !== 'major') return;
-      
-      // Czyszczenie zwykłych wrogów przy wyjściu bossa (Pojedynek 1-na-1)
-      for (let i = enemies.length - 1; i >= 0; i--) {
-          const e = enemies[i];
-          if (e.type !== 'boss' && e.type !== 'final_boss' && e.type !== 'janol' && e.type !== 'mexicano' && e.type !== 'major') {
-              scene.remove(e.mesh);
-              enemies.splice(i, 1);
+      let speechBubbles = [];
+      function spawnSpeechBubble(x, z, text, duration = 2.0) {
+          const bubble = document.createElement('div');
+          bubble.className = 'speech-bubble';
+          bubble.textContent = text;
+          document.getElementById('ui-overlay').appendChild(bubble);
+          speechBubbles.push({ el: bubble, x: x, z: z, timer: duration, maxTimer: duration });
+      }
+
+      function updateSpeechBubbles(dt) {
+          const sw = window.innerWidth; const sh = window.innerHeight;
+          for (let i = speechBubbles.length - 1; i >= 0; i--) {
+              const b = speechBubbles[i];
+              b.timer -= dt;
+              if (b.timer <= 0) {
+                  if (b.el.parentNode) b.el.parentNode.removeChild(b.el);
+                  speechBubbles.splice(i, 1);
+                  continue;
+              }
+              const pos = new THREE.Vector3(b.x, 24, b.z);
+              pos.project(camera);
+              if (pos.z < 1 && pos.x >= -1.1 && pos.x <= 1.1 && pos.y >= -1.1 && pos.y <= 1.1) {
+                  const sx = (pos.x * 0.5 + 0.5) * sw;
+                  const sy = (-pos.y * 0.5 + 0.5) * sh;
+                  b.el.style.left = sx + 'px';
+                  b.el.style.top = sy + 'px';
+                  b.el.style.opacity = Math.min(1, b.timer / 0.4);
+              } else {
+                  b.el.style.opacity = '0';
+              }
           }
       }
 
-      const names = { mexicano: 'MEXICANO TV!', boss: 'BARNEJ!', janol: 'JAN Ł / RODO!', major: 'MAJOR SUCHODOLSKI!', final_boss: 'SRRADEK!!' };
-      const subs = { mexicano: 'Najłatwiejszy Boss (Fala 5)', boss: 'Przywódca Wydziału Repasji (Fala 10)', janol: 'Buntownik z Butelką (Fala 15)', major: 'Wojownik z Bombasu (Fala 18)', final_boss: 'Ostateczny Boss (Fala 20)' };
-      const introEl = document.getElementById('boss-intro');
-      const nameEl = document.getElementById('boss-intro-name');
-      const subEl = document.getElementById('boss-intro-sub');
-      nameEl.textContent = names[type] || '';
-      subEl.textContent = subs[type] || '';
-      introEl.classList.remove('hidden');
-      nameEl.style.animation = 'none'; subEl.style.animation = 'none';
-      void nameEl.offsetWidth;
-      nameEl.style.animation = 'bossIntroAnim 0.8s ease-out forwards';
-      subEl.style.animation = 'bossIntroAnim 0.8s 0.2s ease-out forwards';
-      document.getElementById('ui-overlay').classList.add('shaking');
-      setTimeout(() => { document.getElementById('ui-overlay').classList.remove('shaking'); }, 700);
-      setTimeout(() => { introEl.classList.add('hidden'); }, 3000);
-    }
+      function showBossIntro(type) {
+        if (type !== 'boss' && type !== 'final_boss' && type !== 'janol' && type !== 'mexicano' && type !== 'major') return;
+        
+        // Czyszczenie zwykłych wrogów przy wyjściu bossa (Pojedynek 1-na-1)
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const e = enemies[i];
+            if (e.type !== 'boss' && e.type !== 'final_boss' && e.type !== 'janol' && e.type !== 'mexicano' && e.type !== 'major') {
+                scene.remove(e.mesh);
+                enemies.splice(i, 1);
+            }
+        }
+
+        const names = { mexicano: 'MEXICANO TV!', boss: 'BARNEJ!', janol: 'JAN Ł / RODO!', major: 'MAJOR SUCHODOLSKI!', final_boss: 'SRRADEK!!' };
+        const subs = { mexicano: 'Najłatwiejszy Boss (Fala 5)', boss: 'Przywódca Wydziału Repasji (Fala 10)', janol: 'Buntownik z Butelką (Fala 15)', major: 'Wojownik z Bombasu (Fala 18)', final_boss: 'Ostateczny Boss (Fala 20)' };
+        const quotes = {
+            mexicano: 'Wita was Mexicano TV!',
+            boss: 'Wydział Repasji przybył!',
+            janol: 'Rodo nie śpi!',
+            major: 'Ugółem psznie jem!',
+            final_boss: 'Wszystko na kamerze!'
+        };
+        const introEl = document.getElementById('boss-intro');
+        const nameEl = document.getElementById('boss-intro-name');
+        const subEl = document.getElementById('boss-intro-sub');
+        nameEl.textContent = names[type] || '';
+        subEl.textContent = subs[type] || '';
+        introEl.classList.remove('hidden');
+        nameEl.style.animation = 'none'; subEl.style.animation = 'none';
+        void nameEl.offsetWidth;
+        nameEl.style.animation = 'bossIntroAnim 0.8s ease-out forwards';
+        subEl.style.animation = 'bossIntroAnim 0.8s 0.2s ease-out forwards';
+        document.getElementById('ui-overlay').classList.add('shaking');
+        setTimeout(() => { document.getElementById('ui-overlay').classList.remove('shaking'); }, 700);
+        setTimeout(() => { introEl.classList.add('hidden'); }, 3000);
+
+        if (quotes[type]) spawnSpeechBubble(0, 0, quotes[type], 2.5);
+      }
 
     function spawnParticles(x, z, colorMat) {
         for(let i=0; i<6; i++) {
@@ -1164,6 +1250,16 @@
             spawnParticles(e.x, e.z, mats.blood);
             document.getElementById('ui-overlay').classList.add('shaking');
             setTimeout(() => document.getElementById('ui-overlay').classList.remove('shaking'), 700);
+            
+            const rageQuotes = {
+                mexicano: 'Mój żubr boży!',
+                boss: 'Zaraz tu porządek zrobię!',
+                janol: 'Dajcie dla mnie mleczka!',
+                major: 'Zaraz tu nitro wleci!',
+                final_boss: 'Królem jestem!'
+            };
+            if (rageQuotes[e.type]) spawnSpeechBubble(e.x, e.z, rageQuotes[e.type], 2.2);
+
             if (e.type === 'mexicano') { e.speed = e.baseSpeed * 1.3; }
             if (e.type === 'boss') { e.speed = e.baseSpeed * 1.35; e.cooldown = 0; }
             if (e.type === 'janol') { e.bottleSlowCooldown = 2; }
@@ -1374,19 +1470,59 @@
           p.mesh.position.y = 5 + Math.sin(p.bobTimer) * 2;
           p.mesh.rotation.y += dt;
           if (Math.hypot(p.x - player.x, p.z - player.z) < player.radius + 6) {
+              let healDmg = 30;
               if (p.type === 'milk') {
-                  player.hp = Math.min(player.maxHp, player.hp + 30);
+                  player.hp = Math.min(player.maxHp, player.hp + healDmg);
                   spawnParticles(p.x, p.z, mats.milkMat);
+                  spawnSpeechBubble(player.x, player.z, 'Mleczko Boże! +30 HP', 1.2);
               } else if (p.type === 'chainsaw') {
-                  house.hp = Math.min(house.maxHp, house.hp + 30);
+                  house.hp = Math.min(house.maxHp, house.hp + healDmg);
                   spawnParticles(p.x, p.z, mats.chainsawMat);
+                  spawnSpeechBubble(0, 0, 'Naprawa Domku! +30 HP', 1.2);
               } else if (p.type === 'police') {
                   spawnPoliceCar();
                   spawnParticles(p.x, p.z, mats.policeMat);
+                  spawnSpeechBubble(player.x, player.z, 'Politycy jadą!', 1.2);
               }
               scene.remove(p.mesh); pickups.splice(i, 1);
           }
       }
+
+      // --- BELWEDER WARN & PULSE ---
+      if (house.hp / house.maxHp < 0.35) {
+          document.getElementById('house-warning').classList.remove('hidden');
+          if (Math.random() < 0.3) {
+              spawnParticles(0, 0, new THREE.MeshBasicMaterial({color: 0x333333}));
+          }
+      } else {
+          document.getElementById('house-warning').classList.add('hidden');
+      }
+
+      if (house.pulseLevel > 0) {
+          house.pulseTimer = (house.pulseTimer || 0) + dt;
+          if (house.pulseTimer >= 5.0) {
+              house.pulseTimer = 0;
+              const pulseMesh = new THREE.Mesh(new THREE.RingGeometry(1, house.radius + 35, 32), new THREE.MeshBasicMaterial({color: 0xffaa00, side: THREE.DoubleSide, transparent: true, opacity: 0.8}));
+              pulseMesh.rotation.x = Math.PI / 2; pulseMesh.position.y = 1; scene.add(pulseMesh);
+              const dmg = 35 + house.pulseLevel * 20;
+              enemies.forEach(e => {
+                  if (Math.hypot(e.x, e.z) < house.radius + 55) {
+                      e.hp -= dmg; e.flashTimer = 0.2;
+                      const dir = new THREE.Vector2(e.x, e.z).normalize();
+                      e.x += dir.x * 45; e.z += dir.y * 45;
+                      spawnParticles(e.x, e.z, new THREE.MeshBasicMaterial({color: 0xffaa00}));
+                  }
+              });
+              let pulseT = 0.4;
+              const pInterval = setInterval(() => {
+                  pulseT -= 0.05;
+                  if (pulseT <= 0) { scene.remove(pulseMesh); clearInterval(pInterval); }
+                  else { pulseMesh.material.opacity = pulseT * 2; }
+              }, 50);
+          }
+      }
+
+      updateSpeechBubbles(dt);
 
       for (let i = 0; i < flyingMilks.length; i++) {
           const fm = flyingMilks[i]; fm.angle += dt * 3.5;
