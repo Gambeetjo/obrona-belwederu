@@ -56,14 +56,6 @@
     h1 { color: var(--gold); font-size: 32px; text-shadow: 3px 3px 0 #000; margin-bottom: 5px; }
     p { margin-bottom: 20px; font-size: 14px; line-height: 1.5; max-width: 600px; color: var(--cream); }
     .hud-box { pointer-events: auto; }
-    .holdable { position: relative; overflow: hidden; user-select: none; -webkit-touch-callout: none; cursor: pointer; }
-    .holdable::before {
-      content: ""; position: absolute; top: 0; left: 0; bottom: 0;
-      width: var(--hold-progress, 0%);
-      background: rgba(255, 255, 255, 0.4);
-      z-index: 0; pointer-events: none;
-    }
-    .holdable > * { position: relative; z-index: 1; pointer-events: none; }
 
     @media (max-width: 768px) {
       #hud { font-size: 11px; top: 5px; left: 5px; right: 5px; }
@@ -79,13 +71,53 @@
       text-align: center; pointer-events: none; z-index: 20;
     }
     #boss-hp-track { width: 400px; height: 24px; background: #333; border: 3px solid #000; margin-top: 5px; }
-    #boss-hp-bar { height: 100%; background: #990000; transition: width 0.1s; }
+    #boss-hp-bar { height: 100%; background: linear-gradient(90deg, #990000, #ff3300); transition: width 0.1s; }
     #boss-name { font-size: 20px; color: #ff3333; text-shadow: 2px 2px 0 #000; font-weight: bold; }
+    #boss-name.enraged { color: #ff9900; animation: bossRage 0.3s infinite alternate; }
+    @keyframes bossRage { from { text-shadow: 2px 2px 0 #000; } to { text-shadow: 0 0 20px #ff4400, 2px 2px 0 #000; } }
     @media (max-width: 768px) {
       #boss-hud { top: 10px; }
       #boss-hp-track { width: 200px; height: 15px; border: 2px solid #000; }
       #boss-name { font-size: 14px; }
     }
+    #boss-intro {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; pointer-events: none;
+      z-index: 50; background: rgba(0,0,0,0);
+    }
+    #boss-intro-name {
+      font-size: 48px; color: #ff2200; text-shadow: 0 0 30px #ff4400, 4px 4px 0 #000;
+      font-family: "Press Start 2P", monospace;
+      animation: bossIntroAnim 0.8s ease-out forwards;
+      opacity: 0;
+    }
+    #boss-intro-sub {
+      font-size: 14px; color: #ffcc00; text-shadow: 2px 2px 0 #000;
+      font-family: "Press Start 2P", monospace; margin-top: 15px;
+      animation: bossIntroAnim 0.8s 0.2s ease-out forwards; opacity: 0;
+    }
+    @keyframes bossIntroAnim {
+      from { opacity: 0; transform: scale(2); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes screenShake {
+      0%,100% { transform: translate(0,0); }
+      10% { transform: translate(-8px, 4px); }
+      20% { transform: translate(8px, -4px); }
+      30% { transform: translate(-6px, -6px); }
+      40% { transform: translate(6px, 6px); }
+      50% { transform: translate(-4px, 4px); }
+      60% { transform: translate(4px, -4px); }
+      70% { transform: translate(-6px, 2px); }
+      80% { transform: translate(6px, -2px); }
+    }
+    .shaking { animation: screenShake 0.6s ease-out; }
+    .slow-trail {
+      position: absolute; border-radius: 50%;
+      background: rgba(0, 200, 255, 0.25); pointer-events: none;
+      animation: trailFade 2s forwards;
+    }
+    @keyframes trailFade { to { opacity: 0; transform: scale(1.5); } }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -110,17 +142,15 @@
         <div id="boss-name">BOSS</div>
         <div id="boss-hp-track"><div id="boss-hp-bar" style="width:100%"></div></div>
       </div>
+      <div id="boss-intro" class="hidden">
+        <div id="boss-intro-name"></div>
+        <div id="boss-intro-sub"></div>
+      </div>
     </header>
-
-    <div id="dialogue-box" class="hidden" style="position:absolute; bottom: 15%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); border: 4px solid var(--cream); padding: 20px 40px; color: var(--cream); font-size: 24px; z-index: 100; text-align: center; text-shadow: 2px 2px #000; box-shadow: 6px 6px 0 rgba(0,0,0,0.8); white-space: nowrap;"></div>
 
     <div id="start-screen" class="screen">
       <h1>Obrona Belwederu 3D</h1>
-      <p>Broń domku przed hordami Mopsów, Gimbusów i Listonoszów!</p>
-      <div style="text-align: left; background: rgba(0,0,0,0.5); padding: 15px; margin: 15px 0; border-radius: 8px; font-size: 16px; line-height: 1.5; color: white;">
-        <strong style="color:white">🖥️ PC:</strong> Steruj klawiszami <strong>WASD</strong>. Atak odbywa się <strong>automatycznie</strong>.<br>
-        <strong style="color:white">📱 Telefon:</strong> Poruszaj się <strong>Joystickiem</strong> (dotknij gdziekolwiek). Atak odbywa się <strong>automatycznie</strong>.
-      </div>
+      <p>Broń domku przed hordami! Steruj klawiszami WASD lub joystickiem. Postać atakuje automatycznie kulachą.</p>
       <button class="btn" id="play-btn">Rozpocznij Grę</button>
     </div>
     <div id="pause-screen" class="screen hidden">
@@ -245,11 +275,6 @@
       redCap: new THREE.MeshStandardMaterial({ color: 0xdd1111 }),
       skinTone: new THREE.MeshStandardMaterial({ color: 0xf5d0b5 }),
       bossSkin: new THREE.MeshStandardMaterial({ color: 0xf5d0b5 }),
-      mexicanoPurple: new THREE.MeshStandardMaterial({ color: 0x6a0dad }),
-      guitarBody: new THREE.MeshStandardMaterial({ color: 0xd4a373 }),
-      rodoShirt: new THREE.MeshStandardMaterial({ color: 0xeeeeee }),
-      rodoPants: new THREE.MeshStandardMaterial({ color: 0x483D8B }),
-      pipeMat: new THREE.MeshStandardMaterial({ color: 0x888888 }),
       bossFace: new THREE.MeshStandardMaterial({ map: createBossFaceTexture() }),
       packageMat: new THREE.MeshStandardMaterial({ color: 0x6b4226 }), // Brązowa paczka
       milkMat: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 }),
@@ -320,9 +345,9 @@
     // --- STAN GRY ---
     let gameState = 'start'; let lastTime = 0;
     const house = { mesh: houseMesh, hp: 9999, maxHp: 9999, radius: 28, lastHitTime: 0, regenRate: 2 };
-    let player = {}; let enemies = []; let particles = []; let projectiles = []; let pickups = []; let flyingMilks = []; let flyingNitros = [];
+    let player = {}; let enemies = []; let particles = []; let projectiles = []; let pickups = []; let flyingMilks = [];
     let policeCar = null; let coalTimer = 0;
-    let wave = 1; let score = 0; let xp = 0; let level = 1; let xpNeeded = 3; let waveTimer = 0; let pickupTimer = 0;
+    let wave = 1; let score = 0; let xp = 0; let level = 1; let xpNeeded = 5; let waveTimer = 0; let pickupTimer = 0;
     let finalBossDefeated = false; let aoeAttacks = []; let ambulance = null; let endingSequence = false;
     const keys = { w:false, a:false, s:false, d:false }; let joystick = { active: false, x: 0, y: 0 };
 
@@ -340,7 +365,6 @@
       { id: 'lifesteal', name: 'Pisanie zawiadomień na trójeczke', desc: 'Leczy 2 HP przy ataku.', level: 0, max: 2, minLevel: 5, apply: () => { player.lifesteal = (player.lifesteal || 0) + 2; } },
       { id: 'houseArmor', name: 'Mur wyrzszy od mego', desc: 'Domek dostaje -15% dmg.', level: 0, max: 3, minLevel: 4, apply: () => { house.armor = (house.armor || 0) + 0.15; } },
       { id: 'flyingMilk', name: 'Latające Mleczko Boże', desc: 'Mleczko krąży i rani wrogów.', level: 0, max: 4, minLevel: 2, apply: () => { spawnFlyingMilk(); } },
-      { id: 'nitro', name: 'Rozpuszczalnik Nitro', desc: 'Butelki krążą jeszcze dalej.', level: 0, max: 2, minLevel: 10, apply: () => { spawnNitro(); } },
       { id: 'coal', name: 'Rzut Węglem', desc: 'Automatycznie rzuca węglem we wrogów.', level: 0, max: 4, minLevel: 1, apply: () => { player.coalLevel = (player.coalLevel || 0) + 1; } },
       { id: 'selfRegen', name: 'Zupka Chińska', desc: 'Regeneracja HP co kilka sekund.', level: 0, max: 3, minLevel: 5, apply: () => { player.selfRegenLevel = (player.selfRegenLevel || 0) + 1; } },
       { id: 'rainOfGifts', name: 'Deszcz Darów Bożych', desc: 'Zrzut paczek na skupisko wrogów.', level: 0, max: 3, minLevel: 10, apply: () => { player.rainLevel = (player.rainLevel || 0) + 1; } }
@@ -377,10 +401,9 @@
 
       return {
         mesh: pGroup, arm: armPivot, rangeMesh: rangeMesh, legL: legL, legR: legR,
-        x: 0, z: 60, hp: 100, maxHp: 100, speed: 100, radius: 7,
+        x: 0, z: 60, hp: 9999, maxHp: 9999, speed: 200, radius: 7,
         attackRange: 38, attackAngle: Math.PI / 3, attackCooldown: 0.72, attackTimer: 0,
-        dmg: 20, knockback: 18, isAttacking: false, attackAnimTimer: 0, walkAnimTimer: 0,
-        coalTimer: 0
+        dmg: 20, knockback: 18, isAttacking: false, attackAnimTimer: 0, walkAnimTimer: 0
       };
     }
 
@@ -409,17 +432,16 @@
       const group = new THREE.Group();
       let bodyMat, headMat = mats.skinTone;
       let w = 6, h = 9, d = 5, yOff = 4.5;
-      if (type === 'boss' || type === 'mexicano' || type === 'jan_l') { bodyMat = mats.suitMat; w = 8; h = 12; d = 8; yOff = 6; }
-      if (type === 'mexicano') bodyMat = mats.mexicanoPurple;
-      if (type === 'jan_l') bodyMat = mats.rodoShirt;
+      if (type === 'boss') { bodyMat = mats.suitMat; w = 8; h = 12; d = 8; yOff = 6; }
       else if (type === 'final_boss') { bodyMat = mats.suitMat; w = 16; h = 24; d = 16; yOff = 12; }
+      else if (type === 'janol') { bodyMat = new THREE.MeshStandardMaterial({color: 0x2244aa}); w = 7; h = 11; d = 7; yOff = 5.5; }
       else if (type === 'tank') { bodyMat = mats.enemyMops; w = 8; h = 11; d = 8; yOff = 5.5; }
       else if (type === 'thrower') { bodyMat = mats.enemyListonosz; w = 5; h = 8; d = 5; yOff = 4.0; }
       else if (type === 'runner') { bodyMat = mats.enemyRunner; w = 4; h = 10; d = 4; yOff = 5.0; }
       else { bodyMat = mats.enemyGimbus; }
 
       const body = new THREE.Mesh(geos.box, bodyMat); body.scale.set(w, h, d); body.position.y = yOff; body.castShadow = true;
-      const head = new THREE.Mesh(geos.box, (type === 'boss' || type === 'final_boss' || type === 'mexicano' || type === 'jan_l') ? [mats.skinTone, mats.skinTone, mats.skinTone, mats.skinTone, mats.bossFace, mats.skinTone] : mats.skinTone); head.scale.set(w*0.8, h*0.4, d*0.8); head.position.y = yOff + h/2 + h*0.2; head.castShadow = true;
+      const head = new THREE.Mesh(geos.box, (type === 'boss' || type === 'final_boss') ? [mats.skinTone, mats.skinTone, mats.skinTone, mats.skinTone, mats.bossFace, mats.skinTone] : mats.skinTone); head.scale.set(w*0.8, h*0.4, d*0.8); head.position.y = yOff + h/2 + h*0.2; head.castShadow = true;
       
       const armL = new THREE.Mesh(geos.box, bodyMat); armL.scale.set(w*0.3, h*0.7, d*0.4); armL.position.set(-w/2 - w*0.15, yOff + h*0.1, 0); armL.castShadow = true;
       const armR = new THREE.Mesh(geos.box, bodyMat); armR.scale.set(w*0.3, h*0.7, d*0.4); armR.position.set(w/2 + w*0.15, yOff + h*0.1, 0); armR.castShadow = true;
@@ -433,19 +455,6 @@
           const hair = new THREE.Mesh(geos.box, type === 'final_boss' ? new THREE.MeshStandardMaterial({color: 0x222222}) : mats.grayHairMat); hair.scale.set(w*0.85, h*0.15, d*0.85); hair.position.set(0, yOff + h + h*0.1, 0);
           const cigar = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x5c4033})); cigar.scale.set(0.4, w*0.8, 0.4); cigar.rotation.z = Math.PI/4; cigar.position.set(w/2 + w*0.3, yOff + h*0.1, d*0.5);
           group.add(shirt, bowtie, mustache, hair, cigar);
-      } else if (type === 'mexicano') {
-          const sombreroBrim = new THREE.Mesh(geos.cylinder, mats.mexicanoPurple); sombreroBrim.scale.set(w*1.5, 0.5, w*1.5); sombreroBrim.position.set(0, yOff + h + 0.5, 0);
-          const sombreroTop = new THREE.Mesh(geos.cylinder, mats.mexicanoPurple); sombreroTop.scale.set(w*0.7, 3, w*0.7); sombreroTop.position.set(0, yOff + h + 2, 0);
-          const mustache = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x331100})); mustache.scale.set(w*0.6, h*0.15, d*0.9); mustache.position.set(0, yOff + h/2 + h*0.15, d*0.45);
-          const guitar = new THREE.Mesh(geos.box, mats.guitarBody); guitar.scale.set(w*1.2, h*0.5, d*0.2); guitar.position.set(w*0.3, yOff + h*0.1, d*0.6); guitar.rotation.z = Math.PI / 6;
-          group.add(sombreroBrim, sombreroTop, mustache, guitar);
-      } else if (type === 'jan_l') {
-          const pants = new THREE.Mesh(geos.box, mats.rodoPants); pants.scale.set(w*1.01, h*0.5, d*1.01); pants.position.set(0, yOff - h*0.25, 0);
-          const mustache = new THREE.Mesh(geos.box, mats.grayHairMat); mustache.scale.set(w*0.6, h*0.15, d*0.9); mustache.position.set(0, yOff + h/2 + h*0.15, d*0.45);
-          const sideHairL = new THREE.Mesh(geos.box, mats.grayHairMat); sideHairL.scale.set(w*0.1, h*0.2, d*0.6); sideHairL.position.set(-w*0.4, yOff + h*0.8, 0);
-          const sideHairR = new THREE.Mesh(geos.box, mats.grayHairMat); sideHairR.scale.set(w*0.1, h*0.2, d*0.6); sideHairR.position.set(w*0.4, yOff + h*0.8, 0);
-          const pipe = new THREE.Mesh(geos.cylinder, mats.pipeMat); pipe.scale.set(0.5, w*1.5, 0.5); pipe.position.set(w/2 + w*0.3, yOff + h*0.2, d*0.5); pipe.rotation.x = Math.PI / 2;
-          group.add(pants, mustache, sideHairL, sideHairR, pipe);
       } else if (type === 'normal') {
           const backpack = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x333333}));
           backpack.scale.set(w*0.8, h*0.6, d*0.5); backpack.position.set(0, yOff, -d/2 - d*0.25); backpack.castShadow = true;
@@ -469,7 +478,7 @@
           group.add(glasses);
       }
 
-      const labelText = type === 'final_boss' ? 'SRRADEK' : (type === 'jan_l' ? 'JAN Ł' : (type === 'boss' ? 'BARNEJ' : (type === 'mexicano' ? 'MEXICANO' : (type === 'tank' ? 'MOPS' : (type === 'thrower' ? 'LISTONOSZ' : (type === 'runner' ? 'EKOLUDEK' : 'GIMBUS'))))));
+      const labelText = type === 'final_boss' ? 'SRRADEK' : (type === 'boss' ? 'BARNEJ' : (type === 'janol' ? 'JAN Ł' : (type === 'tank' ? 'MOPS' : (type === 'thrower' ? 'LISTONOSZ' : (type === 'runner' ? 'EKOLUDEK' : 'GIMBUS')))));
       const label = createTextSprite(labelText);
       label.position.y = yOff + h + 2;
       group.add(label);
@@ -485,17 +494,16 @@
       
       if (forceType) type = forceType;
       else if (wave > 3 && rand < 0.2) type = 'tank';
-      else if (wave > 1 && rand < 0.3) type = 'thrower';
-      else if (wave > 1 && rand < 0.6) type = 'runner';
+      else if (wave > 1 && rand < 0.4) type = 'thrower';
+      else if (wave > 1 && rand < 0.7) type = 'runner';
 
       const mesh = createEnemyMesh(type);
       mesh.position.set(x, 0, z); scene.add(mesh);
       
       let hp = 20 + wave * 5; let speed = 25; let dmg = 10; let range = 8;
-      if (type === 'mexicano') { hp = 400; speed = 12; dmg = 25; }
-      else if (type === 'boss') { hp = 800; speed = 10; dmg = 35; }
-      else if (type === 'jan_l') { hp = 1500; speed = 15; dmg = 50; }
-      else if (type === 'final_boss') { hp = 3000; speed = 40; dmg = 100; }
+      if (type === 'boss') { hp = 750; speed = 12; dmg = 30; }
+      else if (type === 'final_boss') { hp = 1500; speed = 15; dmg = 40; }
+      else if (type === 'janol') { hp = 600; speed = 10; dmg = 8; range = 300; target = 'house'; }
       else if (type === 'tank') { hp *= 4; speed = 10; dmg = 25; }
       else if (type === 'thrower') { hp *= 1.5; speed = 18; range = 70; }
       else if (type === 'runner') { hp = 10; speed = 40; dmg = 5; }
@@ -503,11 +511,34 @@
       let target = 'player';
       if (type === 'thrower' || type === 'runner') target = 'house';
       
-      let radius = (type === 'boss' || type === 'mexicano' || type === 'jan_l') ? 12 : (type === 'final_boss' ? 24 : (type === 'tank' ? 10 : 6));
+      let radius = (type === 'boss') ? 12 : (type === 'final_boss' ? 24 : (type === 'tank' ? 10 : 6));
       let kbMult = 1.0;
-      if (['boss', 'mexicano', 'jan_l', 'final_boss'].includes(type)) kbMult = 0;
+      if (type === 'boss') kbMult = 0.5;
+      if (type === 'final_boss') kbMult = 0.1;
+      if (type === 'janol') kbMult = 0.3; // Jan Ł trochę odporny na odrzut
       
-      enemies.push({ mesh, type, x, z, hp, maxHp: hp, speed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult });
+      let baseSpeed = speed;
+      enemies.push({ mesh, type, x, z, hp, maxHp: hp, speed, baseSpeed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult, enraged: false, chargeCooldown: 12, chargeTimer: 0, charging: false, chargeVx: 0, chargeVz: 0, bottleSlowCooldown: 5, phaseTriggered: false });
+      showBossIntro(type);
+    }
+
+    function showBossIntro(type) {
+      if (type !== 'boss' && type !== 'final_boss' && type !== 'janol') return;
+      const names = { boss: 'BARNEJ!', final_boss: 'SRRADEK!!', janol: 'JAN Ł / RODO!' };
+      const subs = { boss: 'Przywódca Wydziału Repasji', final_boss: 'Ostateczny Boss', janol: 'Buntownik z butelką' };
+      const introEl = document.getElementById('boss-intro');
+      const nameEl = document.getElementById('boss-intro-name');
+      const subEl = document.getElementById('boss-intro-sub');
+      nameEl.textContent = names[type] || '';
+      subEl.textContent = subs[type] || '';
+      introEl.classList.remove('hidden');
+      nameEl.style.animation = 'none'; subEl.style.animation = 'none';
+      void nameEl.offsetWidth;
+      nameEl.style.animation = 'bossIntroAnim 0.8s ease-out forwards';
+      subEl.style.animation = 'bossIntroAnim 0.8s 0.2s ease-out forwards';
+      document.getElementById('ui-overlay').classList.add('shaking');
+      setTimeout(() => { document.getElementById('ui-overlay').classList.remove('shaking'); }, 700);
+      setTimeout(() => { introEl.classList.add('hidden'); }, 3000);
     }
 
     function spawnParticles(x, z, colorMat) {
@@ -547,22 +578,10 @@
     function spawnFlyingMilk() {
         const group = new THREE.Group();
         const body = new THREE.Mesh(geos.box, mats.milkMat); body.scale.set(3, 6, 3); body.position.y = 3; body.castShadow = true;
-        group.add(body);
-        
-        flyingMilks.push({ mesh: group, angle: 0, radius: 20.7, dmg: 11 });
+        const cap = new THREE.Mesh(geos.box, mats.redCap); cap.scale.set(1.5, 1, 1.5); cap.position.y = 6.5; cap.castShadow = true;
+        group.add(body, cap); scene.add(group);
+        flyingMilks.push({ mesh: group, angle: 0, radius: 18, dmg: 15 });
         for(let i=0; i<flyingMilks.length; i++) flyingMilks[i].angle = i * (Math.PI * 2 / flyingMilks.length);
-        scene.add(group);
-    }
-
-    function spawnNitro() {
-        const group = new THREE.Group();
-        const body = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x88ccff, transparent: true, opacity: 0.8})); 
-        body.scale.set(2, 5, 2); body.position.y = 2.5; body.castShadow = true;
-        group.add(body);
-        
-        flyingNitros.push({ mesh: group, angle: 0, radius: 27.5, dmg: 25 });
-        for(let i=0; i<flyingNitros.length; i++) flyingNitros[i].angle = i * (Math.PI * 2 / flyingNitros.length);
-        scene.add(group);
     }
 
     function spawnRainOfGifts() {
@@ -641,24 +660,11 @@
         
         // Kabina
         const cabin = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0xffffff})); 
-        cabin.scale.set(6 * scale, 7 * scale, 9.8 * scale); cabin.position.set(13 * scale, 5.5 * scale, 0); cabin.castShadow = true;
-        
-        // Maska silnika
-        const hood = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0xffffff})); 
-        hood.scale.set(5 * scale, 4 * scale, 9.6 * scale); hood.position.set(18.5 * scale, 4 * scale, 0); cabin.castShadow = true;
+        cabin.scale.set(8 * scale, 7 * scale, 10 * scale); cabin.position.set(14 * scale, 5.5 * scale, 0); cabin.castShadow = true;
         
         // Szyba
-        const windowF = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x111111}));
-        windowF.scale.set(4 * scale, 3 * scale, 9.9 * scale); windowF.position.set(15 * scale, 7.5 * scale, 0);
-        
-        // Grill i Reflektory
-        const grill = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x222222}));
-        grill.scale.set(0.5 * scale, 2.5 * scale, 8 * scale); grill.position.set(21 * scale, 4 * scale, 0);
-        const headlight1 = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0xffffaa, emissive: 0xddddaa}));
-        headlight1.scale.set(0.6 * scale, 1 * scale, 2 * scale); headlight1.position.set(21 * scale, 4.5 * scale, 3 * scale);
-        const headlight2 = headlight1.clone(); headlight2.position.set(21 * scale, 4.5 * scale, -3 * scale);
-        const bumper = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x333333}));
-        bumper.scale.set(1 * scale, 1 * scale, 10 * scale); bumper.position.set(21.2 * scale, 2.5 * scale, 0);
+        const window = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x111111}));
+        window.scale.set(8.1 * scale, 3 * scale, 10.1 * scale); window.position.set(14 * scale, 7.5 * scale, 0);
         
         // Czerwony pasek
         const stripe = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0xcc0000}));
@@ -675,9 +681,9 @@
 
         // Światła błyskowe
         const light = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x0088ff, emissive: 0x0088ff})); 
-        light.scale.set(2 * scale, 1 * scale, 6 * scale); light.position.set(13 * scale, 9.5 * scale, 0); light.castShadow = true;
+        light.scale.set(2 * scale, 1 * scale, 6 * scale); light.position.set(12 * scale, 9.5 * scale, 0); light.castShadow = true;
         
-        group.add(body, cabin, hood, windowF, grill, headlight1, headlight2, bumper, stripe, crossH, crossV, w1, w2, light);
+        group.add(body, cabin, window, stripe, crossH, crossV, w1, w2, light);
 
         // Karetka przyjeżdża z prawej strony
         group.position.set(player.x + 500, 0, player.z);
@@ -685,80 +691,49 @@
         ambulance = { mesh: group, active: true, step: 0, timer: 0 };
     }
 
+    // --- LOGIKA GRY ---
     function initGame() {
-      document.getElementById('start-screen').classList.add('hidden'); 
-      document.getElementById('gameover-screen').classList.add('hidden');
-      document.getElementById('pause-screen').classList.add('hidden');
-      document.getElementById('hud').classList.remove('hidden');
-      
       enemies.forEach(e => scene.remove(e.mesh)); enemies = [];
+      particles.forEach(p => scene.remove(p.mesh)); particles = [];
       projectiles.forEach(p => scene.remove(p.mesh)); projectiles = [];
       pickups.forEach(p => scene.remove(p.mesh)); pickups = [];
       flyingMilks.forEach(fm => scene.remove(fm.mesh)); flyingMilks = [];
-      flyingNitros.forEach(fn => scene.remove(fn.mesh)); flyingNitros = [];
-      aoeAttacks.forEach(a => { scene.remove(a.marker); if (a.cameraMesh) scene.remove(a.cameraMesh); }); aoeAttacks = [];
-      
       if (policeCar) { scene.remove(policeCar.mesh); policeCar = null; }
       if (ambulance) { scene.remove(ambulance.mesh); ambulance = null; }
-      if (player.mesh) scene.remove(player.mesh);
+      aoeAttacks.forEach(a => scene.remove(a.marker)); aoeAttacks = [];
+      
+      if(player.mesh) scene.remove(player.mesh);
       
       player = createPlayer(); updateRangeIndicator(); player.coalLevel = 0;
-      house.hp = 150; house.maxHp = 150; house.lastHitTime = 0; house.regenRate = 5; house.armor = 0; house.spikeDmg = 0;
-      wave = 1; score = 0; xp = 0; level = 1; xpNeeded = 3; waveTimer = 0; pickupTimer = 0; coalTimer = 0;
+      house.hp = 100; house.maxHp = 100; house.lastHitTime = 0; house.armor = 0;
+      wave = 1; score = 0; xp = 0; level = 1; xpNeeded = 5; waveTimer = 0; pickupTimer = 0; coalTimer = 0;
       player.regenTimer = 0; player.rainTimer = 0; 
       finalBossDefeated = false; endingSequence = false;
       upgradesPool.forEach(u => u.level = 0); updateUI();
       
       gameState = 'playing'; lastTime = performance.now();
+      document.getElementById('start-screen').classList.add('hidden'); document.getElementById('gameover-screen').classList.add('hidden');
+      document.getElementById('hud').classList.remove('hidden');
     }
 
     function checkLevelUp() {
       if (xp >= xpNeeded) { xp -= xpNeeded; level++; xpNeeded = Math.floor(xpNeeded * 1.35); showLevelUpScreen(); }
     }
 
-    function makeHoldable(el, callback) {
-        let timer, anim;
-        el.classList.add('holdable');
-        el.style.setProperty('--hold-progress', '0%');
-        const start = (e) => {
-            if(e.type === 'mousedown' && e.button !== 0) return;
-            e.preventDefault();
-            let startT = performance.now();
-            anim = setInterval(() => {
-                let p = Math.min(100, ((performance.now() - startT) / 1000) * 100);
-                el.style.setProperty('--hold-progress', p + '%');
-            }, 30);
-            timer = setTimeout(() => { stop(); callback(); }, 1000);
-        };
-        const stop = () => {
-            clearTimeout(timer); clearInterval(anim);
-            el.style.setProperty('--hold-progress', '0%');
-        };
-        el.addEventListener('mousedown', start);
-        el.addEventListener('touchstart', start, {passive: false});
-        el.addEventListener('mouseup', stop);
-        el.addEventListener('mouseleave', stop);
-        el.addEventListener('touchend', stop);
-        el.addEventListener('touchcancel', stop);
-    }
-
     function showLevelUpScreen() {
       gameState = 'levelup'; document.getElementById('levelup-screen').classList.remove('hidden');
       const container = document.getElementById('bonus-cards'); container.innerHTML = '';
-      let available = upgradesPool.filter(u => {
-          if (u.level >= u.max || level < u.minLevel) return false;
-          return true;
-      }).sort(() => Math.random() - 0.5).slice(0, 3);
+      let available = upgradesPool.filter(u => u.level < u.max && level >= u.minLevel).sort(() => Math.random() - 0.5).slice(0, 3);
       if (available.length === 0) {
           const card = document.createElement('div'); card.className = 'bonus-card';
-          card.innerHTML = `<strong>Kromka Chleba</strong><small>Leczy 50 HP.</small><small style="color:var(--gold); margin-top:10px;">(Przytrzymaj 1s)</small>`;
-          makeHoldable(card, () => { player.hp = Math.min(player.maxHp, player.hp + 50); resumeGame(); });
+          card.innerHTML = `<strong>Kromka Chleba</strong><small>Leczy 50 HP.</small>`;
+          card.onclick = () => { player.hp = Math.min(player.maxHp, player.hp + 50); resumeGame(); };
           container.appendChild(card); return;
       }
       available.forEach(bonus => {
         const card = document.createElement('div'); card.className = 'bonus-card';
-        card.innerHTML = `<strong>${bonus.name} (Lvl ${bonus.level+1}/${bonus.max})</strong><small>${bonus.desc}</small><small style="color:var(--gold); margin-top:10px;">(Przytrzymaj 1s)</small>`;
-        makeHoldable(card, () => { bonus.level++; bonus.apply(); resumeGame(); }); container.appendChild(card);
+        card.innerHTML = `<strong>${bonus.name} (Lvl ${bonus.level+1}/${bonus.max})</strong><small>${bonus.desc}</small>`;
+        card.onclick = () => { bonus.level++; bonus.apply(); resumeGame(); }; container.appendChild(card);
       });
     }
 
@@ -776,20 +751,19 @@
       document.getElementById('level-num').innerText = level; document.getElementById('xp-text').innerText = `${xp}/${xpNeeded}`;
       
       const bossHud = document.getElementById('boss-hud');
-      const boss = enemies.find(e => ['boss', 'final_boss', 'mexicano', 'jan_l'].includes(e.type));
+      const boss = enemies.find(e => e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol');
       if (boss) {
           bossHud.classList.remove('hidden');
-          let bName = "BOSS: ";
-          if (boss.type === 'final_boss') bName += "SRRADEK";
-          else if (boss.type === 'jan_l') bName += "JAN Ł (RODO)";
-          else if (boss.type === 'mexicano') bName += "MEXICANO";
-          else bName += "BARNEJ";
-          document.getElementById('boss-name').innerText = bName;
+          const bossNames = { boss: 'BOSS: BARNEJ', final_boss: 'BOSS: SRRADEK', janol: 'BOSS: JAN Ł' };
+          const nameEl = document.getElementById('boss-name');
+          nameEl.innerText = bossNames[boss.type] || 'BOSS';
+          if (boss.enraged && !nameEl.classList.contains('enraged')) nameEl.classList.add('enraged');
+          else if (!boss.enraged) nameEl.classList.remove('enraged');
           document.getElementById('boss-hp-bar').style.width = Math.max(0, (boss.hp / boss.maxHp) * 100) + '%';
       } else {
           bossHud.classList.add('hidden');
       }
-    }
+A    }
 
     function update(dt) {
       if (gameState !== 'playing') return;
@@ -813,27 +787,32 @@
                   ambulance.mesh.rotation.y = Math.atan2(-dz, dx);
               } else {
                   ambulance.step = 1; ambulance.timer = 0;
-                  document.getElementById('dialogue-box').classList.remove('hidden');
-                  document.getElementById('dialogue-box').innerHTML = "<span style='color:#cc0000'>KARETKA:</span> DO CHOROSZCZY!";
+                  ambulance.label1 = createTextSprite("DO CHOROSZCZY!");
+                  ambulance.label1.position.set(ambulance.mesh.position.x, 15, ambulance.mesh.position.z);
+                  scene.add(ambulance.label1);
+                  ambulance.label2 = createTextSprite("NA BADANIA?");
+                  ambulance.label2.position.set(player.x, 15, player.z);
+                  scene.add(ambulance.label2);
               }
           } else if (ambulance.step === 1 && ambulance.timer > 3) {
               ambulance.step = 2; ambulance.timer = 0;
-              document.getElementById('dialogue-box').innerHTML = "<span style='color:#00aaff'>KONON:</span> NA BADANIA?";
+              scene.remove(ambulance.label2);
+              scene.remove(ambulance.label1);
+              ambulance.label3 = createTextSprite("NA STALE!");
+              ambulance.label3.position.set(ambulance.mesh.position.x, 15, ambulance.mesh.position.z);
+              scene.add(ambulance.label3);
           } else if (ambulance.step === 2 && ambulance.timer > 3) {
               ambulance.step = 3; ambulance.timer = 0;
-              document.getElementById('dialogue-box').innerHTML = "<span style='color:#cc0000'>KARETKA:</span> NA STAŁE!";
-          } else if (ambulance.step === 3 && ambulance.timer > 3) {
-              ambulance.step = 4; ambulance.timer = 0;
-              document.getElementById('dialogue-box').classList.add('hidden');
+              scene.remove(ambulance.label3);
               if (player.mesh) player.mesh.visible = false;
               if (player.rangeMesh) player.rangeMesh.visible = false;
-          } else if (ambulance.step === 4) {
-              ambulance.mesh.rotation.y = Math.PI; // obrót w lewo
-              ambulance.mesh.position.x -= 150 * dt;
-              if (ambulance.mesh.position.x < -600) {
-                  ambulance.step = 5;
+          } else if (ambulance.step === 3) {
+              ambulance.mesh.position.x += Math.sin(ambulance.mesh.rotation.y) * 100 * dt;
+              ambulance.mesh.position.z -= Math.cos(ambulance.mesh.rotation.y) * 100 * dt;
+              if (Math.hypot(ambulance.mesh.position.x, ambulance.mesh.position.z) > 400) {
+                  ambulance.step = 4;
               }
-          } else if (ambulance.step === 5) {
+          } else if (ambulance.step === 4) {
               gameState = 'gameover';
               document.getElementById('hud').classList.add('hidden'); document.getElementById('gameover-screen').classList.remove('hidden');
               document.getElementById('gameover-reason').innerText = "Wygrałeś! Konon zabrany do Choroszczy na stałe!";
@@ -946,7 +925,7 @@
       // Rzut węglem - niezależny cooldown
       if (player.coalLevel > 0) {
           player.coalTimer += dt;
-          let interval = Math.max(0.5, 4.0 - player.coalLevel * 0.75);
+          let interval = Math.max(0.5, 3.0 - player.coalLevel * 0.5);
           if (player.coalTimer >= interval) {
               let closestDist = player.attackRange + 150; let targetEnemy = null;
               enemies.forEach(e => {
@@ -958,7 +937,7 @@
                   const hitVector = new THREE.Vector2(targetEnemy.x - player.x, targetEnemy.z - player.z).normalize();
                   const mesh = new THREE.Mesh(geos.box, mats.coalMat); mesh.scale.set(3,3,3);
                   mesh.position.set(player.x, 10, player.z); scene.add(mesh);
-                  projectiles.push({ mesh, x: player.x, z: player.z, vx: hitVector.x * 80, vz: hitVector.y * 80, dmg: 11 + player.coalLevel * 8.5, life: 3.0, isPlayer: true, vy: 15 });
+                  projectiles.push({ mesh, x: player.x, z: player.z, vx: hitVector.x * 80, vz: hitVector.y * 80, dmg: 13 + player.coalLevel * 8.5, life: 3.0, isPlayer: true, vy: 15 });
               }
           }
       }
@@ -973,14 +952,6 @@
       for (let i = aoeAttacks.length - 1; i >= 0; i--) {
           let aoe = aoeAttacks[i];
           aoe.timer -= dt;
-          
-          if (aoe.cameraMesh) {
-              const progress = 1 - Math.max(0, aoe.timer / aoe.maxTime);
-              aoe.cameraMesh.position.y = 120 - (progress * 120);
-              aoe.cameraMesh.rotation.x += dt * 5;
-              aoe.cameraMesh.rotation.y += dt * 8;
-          }
-
           if (aoe.timer <= 0) {
               for (let j = 0; j < 12; j++) spawnParticles(aoe.x, aoe.z, mats.coalMat); // Kamera impact particles
               if (Math.hypot(player.x - aoe.x, player.z - aoe.z) <= aoe.radius + player.radius) {
@@ -992,7 +963,6 @@
                   spawnParticles(0, 0, mats.houseWood);
               }
               scene.remove(aoe.marker);
-              if (aoe.cameraMesh) scene.remove(aoe.cameraMesh);
               aoeAttacks.splice(i, 1);
           } else {
               aoe.marker.material.opacity = (aoe.timer % 0.2 < 0.1) ? 0.8 : 0.3;
@@ -1000,129 +970,103 @@
       }
 
       waveTimer += dt;
-      if (waveTimer >= 25 && wave < 20) { 
+      if (waveTimer >= 25 && wave < 10) { 
           wave++; waveTimer = 0; 
-          if (wave === 20) {
-              enemies.forEach(e => scene.remove(e.mesh)); enemies = [];
-              spawnEnemy('final_boss');
-          }
-          else if (wave === 15) spawnEnemy('jan_l');
-          else if (wave === 10) spawnEnemy('boss'); 
-          else if (wave === 5) spawnEnemy('mexicano');
+          if (wave === 10) spawnEnemy('final_boss');
+          else if (wave === 7) spawnEnemy('janol');
+          else if (wave % 5 === 0) spawnEnemy('boss'); 
       }
       
-      let stopSpawn = enemies.some(e => ['boss', 'final_boss', 'mexicano', 'jan_l'].includes(e.type)) || finalBossDefeated;
-      if (!stopSpawn && wave < 20 && Math.random() < dt / Math.max(0.1, 2.5 - wave * 0.2)) spawnEnemy();
-
-      // Aktualizacja Mleczek (Latające Mleczko)
-      for (let i = 0; i < flyingMilks.length; i++) {
-          const fm = flyingMilks[i]; fm.angle += dt * 3.5;
-          fm.mesh.position.set(player.x + Math.cos(fm.angle) * fm.radius, 5, player.z + Math.sin(fm.angle) * fm.radius);
-          fm.mesh.rotation.y -= dt * 2;
-          
-          let hit = false;
-          enemies.forEach(e => {
-              if (!hit && Math.hypot(fm.mesh.position.x - e.x, fm.mesh.position.z - e.z) < e.radius + 3) {
-                  e.hp -= fm.dmg; e.flashTimer = 0.1;
-                  e.mesh.children.forEach(c => { if(c.material && c.material.emissive && !['boss', 'final_boss', 'mexicano', 'jan_l'].includes(e.type)) c.material.emissive.setHex(0x550000); });
-                  spawnParticles(e.x, e.z, mats.milkMat); hit = true;
-              }
-          });
-      }
-
-      // Aktualizacja Butelki Nitro
-      for (let i = 0; i < flyingNitros.length; i++) {
-          const fn = flyingNitros[i]; fn.angle -= dt * 5.0; // Krążą szybciej i w drugą stronę
-          fn.mesh.position.set(player.x + Math.cos(fn.angle) * fn.radius, 5, player.z + Math.sin(fn.angle) * fn.radius);
-          fn.mesh.rotation.x += dt * 5; fn.mesh.rotation.z += dt * 5;
-          
-          let hit = false;
-          enemies.forEach(e => {
-              if (!hit && Math.hypot(fn.mesh.position.x - e.x, fn.mesh.position.z - e.z) < e.radius + 2) {
-                  e.hp -= fn.dmg; e.flashTimer = 0.1;
-                  e.mesh.children.forEach(c => { if(c.material && c.material.emissive && e.type !== 'boss' && e.type !== 'final_boss') c.material.emissive.setHex(0x550000); });
-                  spawnParticles(e.x, e.z, new THREE.MeshStandardMaterial({color: 0x88ccff})); hit = true;
-              }
-          });
-      }
+      let stopSpawn = (wave >= 10 && (enemies.some(e => e.type === 'final_boss') || finalBossDefeated));
+      if (!stopSpawn && wave < 10 && Math.random() < dt / Math.max(0.1, 2.5 - wave * 0.2)) spawnEnemy(); // naprawiony spawn losowych
 
       // Aktualizacja wrogów
       for (let i = enemies.length - 1; i >= 0; i--) {
         const e = enemies[i];
         if(e.flashTimer > 0) {
             e.flashTimer -= dt;
-            if(e.flashTimer <= 0) e.mesh.children.forEach(c => { if(c.material && c.material.emissive && !['boss', 'final_boss', 'mexicano', 'jan_l'].includes(e.type)) c.material.emissive.setHex(0x000000); });
+            if(e.flashTimer <= 0) e.mesh.children.forEach(c => { if(c.material && c.material.emissive && e.type !== 'boss' && e.type !== 'final_boss') c.material.emissive.setHex(0x000000); });
         }
 
         if (e.hp <= 0) {
-          const isAnyBoss = ['boss', 'final_boss', 'mexicano', 'jan_l'].includes(e.type);
-          score += (isAnyBoss ? 100 : 10);
-          
-          let xpGain = 1;
-          if (e.type === 'runner') xpGain = 2;
-          else if (e.type === 'tank') xpGain = 3;
-          else if (e.type === 'thrower') xpGain = 4;
-          if (isAnyBoss) xpGain = xpNeeded;
-          xp += xpGain;
-          
+          score += (e.type === 'boss' || e.type === 'final_boss' ? 100 : 10); xp += (e.type === 'boss' || e.type === 'final_boss' ? 5 : 1);
           spawnParticles(e.x, e.z, e.mesh.children[0].material);
           if (e.type === 'final_boss') {
               finalBossDefeated = true;
               endingSequence = true;
-              
-              // Czyścimy ekran z elementów, aby animacja karetki nie była przerwana/zamrożona w locie
-              enemies.forEach(en => { if (en !== e) scene.remove(en.mesh); }); enemies = [];
-              projectiles.forEach(p => scene.remove(p.mesh)); projectiles = [];
-              pickups.forEach(p => scene.remove(p.mesh)); pickups = [];
-              flyingMilks.forEach(fm => scene.remove(fm.mesh)); flyingMilks = [];
-              flyingNitros.forEach(fn => scene.remove(fn.mesh)); flyingNitros = [];
-              aoeAttacks.forEach(a => { scene.remove(a.marker); if(a.cameraMesh) scene.remove(a.cameraMesh); }); aoeAttacks = [];
-              
-              if (player && player.mesh) {
-                  player.arm.rotation.z = 0;
-                  player.arm.rotation.x = 0;
-                  player.legL.rotation.x = 0;
-                  player.legR.rotation.x = 0;
-              }
-              
               spawnAmbulance();
-              scene.remove(e.mesh);
-              checkLevelUp();
-              return;
           }
           scene.remove(e.mesh); enemies.splice(i, 1); checkLevelUp(); continue;
         }
 
+        // --- FAZY HP (wściekłość po 50%) ---
+        if (!e.phaseTriggered && e.hp <= e.maxHp * 0.5 && (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol')) {
+            e.phaseTriggered = true;
+            e.enraged = true;
+            document.getElementById('boss-name').classList.add('enraged');
+            spawnParticles(e.x, e.z, mats.blood);
+            document.getElementById('ui-overlay').classList.add('shaking');
+            setTimeout(() => document.getElementById('ui-overlay').classList.remove('shaking'), 700);
+            if (e.type === 'boss') { e.speed = e.baseSpeed * 1.6; e.cooldown = 0; } // Barnej: szybszy, atakuje od razu
+            if (e.type === 'final_boss') { e.aoeCooldown = 1; } // Srradek: natychmiastowe AoE
+            if (e.type === 'janol') { e.bottleSlowCooldown = 2; } // Jan Ł: 2x częstsze butelki
+        }
+
+        // --- BARNEJ: SZARŻA ---
+        if (e.type === 'boss') {
+            if (e.charging) {
+                e.chargeTimer -= dt;
+                e.x += e.chargeVx * dt;
+                e.z += e.chargeVz * dt;
+                e.mesh.position.set(e.x, 4 + Math.sin(e.chargeTimer * 20) * 3, e.z);
+                // uderzenie w gracza podczas szarży
+                if (Math.hypot(e.x - player.x, e.z - player.z) < e.radius + player.radius + 5) {
+                    player.hp -= 45;
+                    e.charging = false;
+                    spawnParticles(player.x, player.z, mats.blood);
+                }
+                if (e.chargeTimer <= 0) { e.charging = false; e.speed = e.enraged ? e.baseSpeed * 1.6 : e.baseSpeed; e.chargeCooldown = e.enraged ? 7 : 12; }
+            } else {
+                e.chargeCooldown -= dt;
+                if (e.chargeCooldown <= 0) {
+                    // Szarża!
+                    e.charging = true; e.chargeTimer = 0.7; e.speed = 0;
+                    const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
+                    const chargeSpeed = 350;
+                    e.chargeVx = dir.x * chargeSpeed; e.chargeVz = dir.y * chargeSpeed;
+                    // Efekt wizualny - rozbłysk
+                    e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xff6600); });
+                    setTimeout(() => e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); }), 300);
+                }
+            }
+        }
+
+        // --- SRRADEK: AoE KAMERA ---
         if (e.type === 'final_boss') {
             e.aoeCooldown -= dt;
             if (e.aoeCooldown <= 0) {
-                e.aoeCooldown = 4; // Szybsze ataki kamery
+                e.aoeCooldown = e.enraged ? 3 : 6;
                 const marker = new THREE.Mesh(new THREE.CylinderGeometry(15, 15, 1, 16), new THREE.MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.5}));
                 marker.position.set(player.x, 0.5, player.z);
                 scene.add(marker);
-                
-                const cameraGroup = new THREE.Group();
-                const camBody = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x333333}));
-                camBody.scale.set(6, 4, 8);
-                const camLens = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x111111}));
-                camLens.rotation.x = Math.PI / 2; camLens.scale.set(1.5, 3, 1.5); camLens.position.set(0, 0, 4.5);
-                cameraGroup.add(camBody, camLens);
-                cameraGroup.position.set(player.x, 120, player.z);
-                scene.add(cameraGroup);
-                
-                aoeAttacks.push({ x: player.x, z: player.z, timer: 2.0, maxTime: 2.0, marker: marker, cameraMesh: cameraGroup, radius: 15, dmg: 50 });
+                aoeAttacks.push({ x: player.x, z: player.z, timer: 2.5, marker: marker, radius: 15, dmg: e.enraged ? 70 : 50 });
+                // Po wściekłości też przyzwuje dodatkowe gimbary
+                if (e.enraged && Math.random() < 0.5) { spawnEnemy('normal'); spawnEnemy('runner'); }
             }
         }
-        
-        if (e.type === 'jan_l') {
-            e.skillTimer = (e.skillTimer || 0) - dt;
-            if (e.skillTimer <= 0) {
-                e.skillTimer = 5;
-                const pMesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 4, 8), new THREE.MeshStandardMaterial({color: 0x2e8b57, transparent: true, opacity: 0.8}));
-                pMesh.rotation.x = Math.PI / 2;
-                scene.add(pMesh);
-                const dir = new THREE.Vector2(0 - e.x, 0 - e.z).normalize();
-                projectiles.push({ mesh: pMesh, x: e.x, z: e.z, vx: dir.x*60, vz: dir.y*60, dmg: 10, target: 'house', life: 3.0 });
+
+        // --- JAN Ł / RODO: butelki ze śladem spowalniającym ---
+        if (e.type === 'janol') {
+            e.bottleSlowCooldown -= dt;
+            if (e.bottleSlowCooldown <= 0) {
+                e.bottleSlowCooldown = e.enraged ? 2 : 5;
+                const bMesh = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x88ccff, transparent: true, opacity: 0.85}));
+                bMesh.scale.set(1.5, 4, 1.5); scene.add(bMesh);
+                projectiles.push({ mesh: bMesh, x: e.x, z: e.z, vx: 0, vz: 0, vy: 0, dmg: 10, target: 'house', life: 4.0, isBottle: true, slowTrail: true });
+                // nadajemy mu prędkość w stronę domku
+                const dir = new THREE.Vector2(-e.x, -e.z).normalize();
+                projectiles[projectiles.length-1].vx = dir.x * 45;
+                projectiles[projectiles.length-1].vz = dir.y * 45;
             }
         }
 
@@ -1144,7 +1088,7 @@
             e.mesh.position.y = 0;
             e.mesh.rotation.x = 0;
             e.bobTimer += dt * e.speed * 0.5;
-            e.mesh.children[0].position.y = (['boss', 'final_boss', 'mexicano', 'jan_l'].includes(e.type) ? 6 : (e.type === 'tank' ? 4.5 : (e.type === 'thrower' ? 3.5 : 3))) + Math.sin(e.bobTimer) * 1.5;
+            e.mesh.children[0].position.y = (e.type === 'boss' || e.type === 'final_boss' ? 6 : (e.type === 'tank' ? 4.5 : (e.type === 'thrower' ? 3.5 : 3))) + Math.sin(e.bobTimer) * 1.5;
         }
 
         let targetRadius = e.target === 'player' ? player.radius : house.radius;
@@ -1166,16 +1110,9 @@
                     const dir = new THREE.Vector2(tx - e.x, tz - e.z).normalize();
                     projectiles.push({ mesh: pMesh, x: e.x, z: e.z, vx: dir.x*50, vz: dir.y*50, dmg: e.dmg, target: e.target, life: 3.0 });
                 } else {
-                    e.cooldown = e.type === 'final_boss' ? 0.45 : 0.85; 
-                    e.lungeTimer = 0.2;
-                    if (e.target === 'player') {
-                        player.hp -= e.dmg;
-                    } else {
-                        let incomingDmg = e.dmg * 0.9;
-                        if (house.armor) incomingDmg *= (1 - house.armor);
-                        house.hp -= incomingDmg; 
-                        house.lastHitTime = performance.now();
-                    }
+                    e.cooldown = 0.85; e.lungeTimer = 0.2;
+                    if (e.target === 'player') player.hp -= e.dmg;
+                    else { house.hp -= e.dmg; house.lastHitTime = performance.now(); }
                 }
             }
         }
@@ -1197,40 +1134,39 @@
           p.mesh.rotation.x += dt * 5; p.mesh.rotation.z += dt * 3;
 
           let hit = false;
-          if (p.isPlayer) {
+          if (p.isPlayer || p.isGift) {
               enemies.forEach(e => {
-                  if (!hit && Math.hypot(p.x - e.x, p.z - e.z) < e.radius + 4) {
+                  if (!hit && Math.hypot(p.x - e.x, p.z - e.z) < e.radius + (p.isGift ? 12 : 4)) {
                       e.hp -= p.dmg; e.flashTimer = 0.1;
                       e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x550000); });
-                      spawnParticles(e.x, e.z, mats.coalMat); hit = true;
+                      spawnParticles(e.x, e.z, p.isGift ? mats.packageMat : mats.coalMat); hit = true;
                   }
               });
-          } else if (p.isGift) {
-              if (p.mesh.position.y <= 2.1) {
-                  spawnParticles(p.x, p.z, mats.packageMat);
-                  enemies.forEach(e => {
-                      if (Math.hypot(p.x - e.x, p.z - e.z) < e.radius + 25) { // Promień wybuchu 25
-                          e.hp -= p.dmg; e.flashTimer = 0.1;
-                          e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x550000); });
-                      }
-                  });
-                  hit = true;
-              }
           } else {
               if (p.target === 'player' && Math.hypot(p.x - player.x, p.z - player.z) < player.radius + 4) {
                   player.hp -= p.dmg; spawnParticles(player.x, player.z, mats.blood); hit = true;
               } else if (p.target === 'house' && Math.hypot(p.x, p.z) < house.radius + 4) {
-                  let incomingDmg = p.dmg * 0.9;
+                  let incomingDmg = p.dmg;
                   if (house.armor) incomingDmg *= (1 - house.armor);
                   house.hp -= incomingDmg; house.lastHitTime = performance.now(); spawnParticles(0, 0, mats.houseWood); hit = true;
+              }
+              // Butelki Jana Ł - spowalniają gracza przy trafieniu
+              if (p.isBottle && Math.hypot(p.x - player.x, p.z - player.z) < player.radius + 8) {
+                  if (!player.slowed) {
+                      player.slowed = true;
+                      player.baseSpeed = player.speed;
+                      player.speed *= 0.4;
+                      setTimeout(() => { if(player.slowed) { player.speed = player.baseSpeed; player.slowed = false; } }, 2500);
+                  }
+                  spawnParticles(player.x, player.z, new THREE.MeshStandardMaterial({color: 0x88ccff}));
+                  hit = true;
               }
           }
           if (hit || p.life <= 0 || ((p.isPlayer || p.isGift) && p.mesh.position.y <= 2)) { scene.remove(p.mesh); projectiles.splice(i, 1); }
       }
 
       pickupTimer += dt;
-      let pLimit = wave >= 10 ? 17 : 20;
-      if (pickupTimer >= pLimit) { pickupTimer = 0; spawnPickup(); }
+      if (pickupTimer >= 20) { pickupTimer = 0; spawnPickup(); }
       for(let i = pickups.length - 1; i >= 0; i--) {
           const p = pickups[i];
           p.bobTimer += dt * 3;
@@ -1319,36 +1255,31 @@
     });
     document.addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (keys.hasOwnProperty(k)) keys[k] = false; });
 
-    let touchStartX = 0, touchStartY = 0, joystickTouchId = null; const bodyEl = document.body;
+    let touchStartX = 0, touchStartY = 0; const bodyEl = document.body;
     bodyEl.addEventListener('touchstart', e => {
         if(e.target.tagName === 'BUTTON' || e.target.closest('.bonus-card')) return;
         for(let i=0; i<e.changedTouches.length; i++) {
-            if (!joystick.active) {
-                joystick.active = true; joystickTouchId = e.changedTouches[i].identifier; touchStartX = e.changedTouches[i].clientX; touchStartY = e.changedTouches[i].clientY; joystick.x = 0; joystick.y = 0;
+            if (e.changedTouches[i].clientX < window.innerWidth / 2) {
+                joystick.active = true; touchStartX = e.changedTouches[i].clientX; touchStartY = e.changedTouches[i].clientY; joystick.x = 0; joystick.y = 0;
             }
         }
     }, {passive: false});
     bodyEl.addEventListener('touchmove', e => {
         if (!joystick.active) return; e.preventDefault(); 
-        for(let i=0; i<e.changedTouches.length; i++) {
-            if (e.changedTouches[i].identifier === joystickTouchId) {
-                const dx = e.changedTouches[i].clientX - touchStartX, dy = e.changedTouches[i].clientY - touchStartY, dist = Math.hypot(dx, dy);
+        for(let i=0; i<e.touches.length; i++) {
+            if (e.touches[i].clientX < window.innerWidth / 2) {
+                const dx = e.touches[i].clientX - touchStartX, dy = e.touches[i].clientY - touchStartY, dist = Math.hypot(dx, dy);
                 if (dist > 0) { const power = Math.min(dist, 50) / 50; joystick.x = (dx / dist) * power; joystick.y = (dy / dist) * power; }
             }
         }
     }, {passive: false});
     bodyEl.addEventListener('touchend', e => {
         for(let i=0; i<e.changedTouches.length; i++) {
-            if (e.changedTouches[i].identifier === joystickTouchId || joystickTouchId === null) { 
-                joystick.active = false; joystick.x = 0; joystick.y = 0; joystickTouchId = null; 
-            }
+            if (e.changedTouches[i].clientX < window.innerWidth / 2 || joystick.active) { joystick.active = false; joystick.x = 0; joystick.y = 0; }
         }
     });
 
-    document.getElementById('play-btn').onclick = initGame; 
-    document.getElementById('restart-btn').innerHTML = "Zagraj Ponownie<br><small style='font-size:12px; color:var(--cream)'>(Przytrzymaj 1s)</small>";
-    makeHoldable(document.getElementById('restart-btn'), initGame);
-    document.getElementById('resume-btn').onclick = resumeGame;
+    document.getElementById('play-btn').onclick = initGame; document.getElementById('restart-btn').onclick = initGame; document.getElementById('resume-btn').onclick = resumeGame;
     animate();
   </script>
 </body>
