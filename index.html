@@ -208,9 +208,35 @@
 
     <div id="start-screen" class="screen">
       <h1>Obrona Belwederu 3D</h1>
-      <p>Broń domku przed hordami! Steruj klawiszami WASD lub joystickiem. Postać atakuje automatycznie kulachą.</p>
-      <button class="btn" id="play-btn">Rozpocznij Grę</button>
+      <p>Broń domku przed hordami wrogów! Steruj klawiszami WASD lub joystickiem. Postać atakuje automatycznie oraz ręcznie Enterem / Kliknięciem.</p>
+      <p style="color: var(--gold); font-size: 12px; margin: 10px 0; text-shadow: 1px 1px 0 #000;">
+        💡 Naciśnij <strong>[H]</strong> w dowolnym momencie, aby otworzyć Instrukcję Gry!
+      </p>
+      <div style="display: flex; gap: 12px; margin-top: 10px;">
+        <button class="btn" id="play-btn">Rozpocznij Grę</button>
+        <button class="btn" id="help-btn" style="background: #4a3425; font-size: 13px;">[H] Instrukcja</button>
+      </div>
     </div>
+
+    <div id="help-screen" class="screen hidden">
+      <h1 style="color: var(--gold); font-size: 22px; margin-bottom: 12px;">📜 INSTRUKCJA GRY</h1>
+      <div style="text-align: left; max-width: 540px; font-size: 11px; line-height: 1.6; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; border: 2px solid var(--gold); color: #fff;">
+        <p><strong>🏠 CEL GRY:</strong> Obroń Belweder (drewniany domek) oraz swoją postać przed nacierającymi hordami przeciwników!</p>
+        <hr style="border-color: rgba(255,255,255,0.2); margin: 8px 0;">
+        <p><strong>🎮 STEROWANIE I ATAK:</strong></p>
+        <p>• <strong>Ruch:</strong> Klawisze <strong>WASD</strong> lub Ekranowy Joystick.<br>
+        • <strong>Atak & Parowanie:</strong> Klawisz <strong>ENTER</strong>, <strong>SPACJA</strong> lub <strong>KLIKNIĘCIE MYSZY</strong> wywołuje zamach kulachą (auto-atak działa pomocniczo przy bliskich wrogach).</p>
+        <hr style="border-color: rgba(255,255,255,0.2); margin: 8px 0;">
+        <p><strong>🪓 PAROWANIE (ZBIJANIE POCISKÓW):</strong></p>
+        <p>Zamachnij się kulachą dokładnie wtedy, gdy leci w Twoją stronę puszka lub butelka, aby <strong>zbić pocisk w locie</strong> i uniknąć obrażeń!</p>
+        <hr style="border-color: rgba(255,255,255,0.2); margin: 8px 0;">
+        <p><strong>⚔️ FALE I TAJEMNICZY BOSSOWIE:</strong></p>
+        <p>Gra składa się z <strong>20 Fal</strong>. Co 4-5 fal na mapę wkracza potężny, tajemniczy <strong>Boss</strong> (łącznie 5 groźnych Bossów!). Podczas pojedynku z Bossem zwykli przeciwnicy znikają, tworząc czysty pojedynek 1-na-1!</p>
+      </div>
+      <div id="cheat-status" style="color: #00ffaa; font-weight: bold; margin-top: 10px; font-size: 12px;" class="hidden"></div>
+      <button class="btn" id="close-help-btn" style="margin-top: 12px; font-size: 13px;">Zamknij (Esc / H)</button>
+    </div>
+
     <div id="pause-screen" class="screen hidden">
       <h1>PAUZA</h1>
       <button class="btn" id="resume-btn">Wznów</button>
@@ -525,9 +551,11 @@
       const rangeGeo = new THREE.RingGeometry(0.9, 1, 32); const rangeMat = new THREE.MeshBasicMaterial({color: 0xffaaaa, side: THREE.DoubleSide, transparent: true, opacity: 0.3});
       const rangeMesh = new THREE.Mesh(rangeGeo, rangeMat); rangeMesh.rotation.x = Math.PI / 2; rangeMesh.position.y = 0.5; scene.add(rangeMesh);
 
+      const startHp = cheatActive ? 9999 : 100;
+      const startSpeed = cheatActive ? 200 : 170;
       return {
         mesh: pGroup, arm: armPivot, rangeMesh: rangeMesh, legL: legL, legR: legR,
-        x: 0, z: 60, hp: 9999, maxHp: 9999, speed: 170, radius: 7,
+        x: 0, z: 60, hp: startHp, maxHp: startHp, speed: startSpeed, radius: 7,
         attackRange: 38, attackAngle: Math.PI / 3, attackCooldown: 0.72, attackTimer: 0,
         dmg: 20, knockback: 18, isAttacking: false, attackAnimTimer: 0, walkAnimTimer: 0
       };
@@ -916,7 +944,8 @@
       if(player.mesh) scene.remove(player.mesh);
       
       player = createPlayer(); updateRangeIndicator(); player.coalLevel = 0;
-      house.hp = 150; house.maxHp = 150; house.lastHitTime = 0; house.armor = 0; house.spikeDmg = 0;
+      const startHouseHp = cheatActive ? 9999 : 150;
+      house.hp = startHouseHp; house.maxHp = startHouseHp; house.lastHitTime = 0; house.armor = 0; house.spikeDmg = 0;
       wave = 1; score = 0; xp = 0; level = 1; xpNeeded = 5; waveTimer = 0; pickupTimer = 0; coalTimer = 0;
       player.regenTimer = 0; player.rainTimer = 0; 
       finalBossDefeated = false; endingSequence = false;
@@ -1682,9 +1711,53 @@
       }
     }
 
+    let secretCodeBuffer = "";
+    let cheatActive = false;
+
+    function toggleHelpScreen() {
+      const helpEl = document.getElementById('help-screen');
+      if (helpEl.classList.contains('hidden')) {
+          helpEl.classList.remove('hidden');
+          secretCodeBuffer = "";
+      } else {
+          helpEl.classList.add('hidden');
+      }
+    }
+
     window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     document.addEventListener('keydown', e => {
       const k = e.key.toLowerCase(); if (keys.hasOwnProperty(k)) keys[k] = true;
+      
+      const helpEl = document.getElementById('help-screen');
+      if (!helpEl.classList.contains('hidden')) {
+          if (e.key.length === 1 && e.key.match(/[a-z]/i)) {
+              secretCodeBuffer += e.key.toLowerCase();
+              if (secretCodeBuffer.length > 20) secretCodeBuffer = secretCodeBuffer.slice(-10);
+              if (secretCodeBuffer.endsWith('warmia')) {
+                  cheatActive = true;
+                  if (player && player.hp !== undefined) {
+                      player.hp = 9999; player.maxHp = 9999; player.speed = 200;
+                  }
+                  if (house && house.hp !== undefined) {
+                      house.hp = 9999; house.maxHp = 9999;
+                  }
+                  document.getElementById('cheat-status').innerHTML = '🧪 TAJNY KOD "WARMIA" AKTYWOWANY!<br>9999 HP & 200 SPEED!';
+                  document.getElementById('cheat-status').classList.remove('hidden');
+                  spawnSpeechBubble(0, 0, 'WARMIA AKTYWOWANA! 🧪', 2.0);
+                  updateUI();
+              }
+          }
+          if (k === 'h' || k === 'escape') {
+              toggleHelpScreen();
+              return;
+          }
+      } else {
+          if (k === 'h') {
+              toggleHelpScreen();
+              return;
+          }
+      }
+
       if (k === 'enter' || k === ' ' || k === 'spacebar') {
           if (gameState === 'playing') performPlayerAttack();
       }
@@ -1722,7 +1795,11 @@
         }
     });
 
-    document.getElementById('play-btn').onclick = initGame; document.getElementById('restart-btn').onclick = initGame; document.getElementById('resume-btn').onclick = resumeGame;
+    document.getElementById('play-btn').onclick = initGame;
+    document.getElementById('restart-btn').onclick = initGame;
+    document.getElementById('resume-btn').onclick = resumeGame;
+    document.getElementById('help-btn').onclick = toggleHelpScreen;
+    document.getElementById('close-help-btn').onclick = toggleHelpScreen;
     animate();
   </script>
 </body>
