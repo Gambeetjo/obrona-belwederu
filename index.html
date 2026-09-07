@@ -446,6 +446,7 @@
       { id: 'lifesteal', name: 'Pisanie zawiadomień na trójeczke', desc: 'Leczy 2 HP przy ataku.', level: 0, max: 2, minLevel: 5, apply: () => { player.lifesteal = (player.lifesteal || 0) + 2; } },
       { id: 'houseArmor', name: 'Mur wyrzszy od mego', desc: 'Domek dostaje -15% dmg.', level: 0, max: 3, minLevel: 4, apply: () => { house.armor = (house.armor || 0) + 0.15; } },
       { id: 'flyingMilk', name: 'Latające Mleczko Boże', desc: 'Mleczko krąży i rani wrogów.', level: 0, max: 4, minLevel: 2, apply: () => { spawnFlyingMilk(); } },
+      { id: 'flyingNitro', name: 'Butelka Nitro Boża', desc: 'Nitro krąży 15% dalej od mleka i mocno rani wrogów.', level: 0, max: 4, minLevel: 10, apply: () => { spawnFlyingNitro(); } },
       { id: 'coal', name: 'Rzut Węglem', desc: 'Automatycznie rzuca węglem we wrogów.', level: 0, max: 4, minLevel: 1, apply: () => { player.coalLevel = (player.coalLevel || 0) + 1; } },
       { id: 'selfRegen', name: 'Zupka Chińska', desc: 'Regeneracja HP co kilka sekund.', level: 0, max: 3, minLevel: 5, apply: () => { player.selfRegenLevel = (player.selfRegenLevel || 0) + 1; } },
       { id: 'rainOfGifts', name: 'Deszcz Darów Bożych', desc: 'Zrzut paczek na skupisko wrogów.', level: 0, max: 3, minLevel: 10, apply: () => { player.rainLevel = (player.rainLevel || 0) + 1; } }
@@ -665,6 +666,17 @@
         for(let i=0; i<flyingMilks.length; i++) flyingMilks[i].angle = i * (Math.PI * 2 / flyingMilks.length);
     }
 
+    function spawnFlyingNitro() {
+        const group = new THREE.Group();
+        const nitroMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, roughness: 0.3 });
+        const capMat = new THREE.MeshStandardMaterial({ color: 0xff0044 });
+        const body = new THREE.Mesh(geos.box, nitroMat); body.scale.set(3, 7, 3); body.position.y = 3.5; body.castShadow = true;
+        const cap = new THREE.Mesh(geos.box, capMat); cap.scale.set(1.5, 1.2, 1.5); cap.position.y = 7.5; cap.castShadow = true;
+        group.add(body, cap); scene.add(group);
+        flyingNitros.push({ mesh: group, angle: 0, radius: 20.7, dmg: 35 });
+        for(let i=0; i<flyingNitros.length; i++) flyingNitros[i].angle = i * (Math.PI * 2 / flyingNitros.length);
+    }
+
     function spawnRainOfGifts() {
         if (enemies.length === 0) return;
         let bestTarget = enemies[0];
@@ -779,6 +791,7 @@
       projectiles.forEach(p => scene.remove(p.mesh)); projectiles = [];
       pickups.forEach(p => scene.remove(p.mesh)); pickups = [];
       flyingMilks.forEach(fm => scene.remove(fm.mesh)); flyingMilks = [];
+      flyingNitros.forEach(fn => scene.remove(fn.mesh)); flyingNitros = [];
       if (policeCar) { scene.remove(policeCar.mesh); policeCar = null; }
       if (ambulance) { scene.remove(ambulance.mesh); ambulance = null; }
       aoeAttacks.forEach(a => scene.remove(a.marker)); aoeAttacks = [];
@@ -850,7 +863,7 @@
       } else {
           bossHud.classList.add('hidden');
       }
-A    }
+    }
 
     function update(dt) {
       if (gameState !== 'playing') return;
@@ -1301,6 +1314,22 @@ A    }
                   e.hp -= fm.dmg + player.dmg * 0.2; e.flashTimer = 0.2;
                   e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x550000); });
                   spawnParticles(e.x, e.z, mats.milkMat);
+              }
+          });
+      }
+
+      for (let i = 0; i < flyingNitros.length; i++) {
+          const fn = flyingNitros[i]; fn.angle += dt * 4.2;
+          fn.mesh.position.x = player.x + Math.cos(fn.angle) * fn.radius;
+          fn.mesh.position.z = player.z + Math.sin(fn.angle) * fn.radius;
+          fn.mesh.position.y = 8 + Math.sin(fn.angle * 2.5) * 2;
+          fn.mesh.rotation.y += dt * 6; fn.mesh.rotation.x += dt * 3;
+          
+          enemies.forEach(e => {
+              if (e.flashTimer <= 0 && Math.hypot(e.x - fn.mesh.position.x, e.z - fn.mesh.position.z) < e.radius + 5) {
+                  e.hp -= fn.dmg + player.dmg * 0.3; e.flashTimer = 0.2;
+                  e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x00ffcc); });
+                  spawnParticles(e.x, e.z, new THREE.MeshBasicMaterial({color: 0x00ffcc}));
               }
           });
       }
