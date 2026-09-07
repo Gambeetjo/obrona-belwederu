@@ -671,11 +671,11 @@
       mesh.position.set(x, 0, z); scene.add(mesh);
       
       let hp = 20 + wave * 5; let speed = 25; let dmg = 10; let range = 8;
-      if (type === 'mexicano') { hp = 400; speed = 35; dmg = 15; range = 180; }
-      else if (type === 'boss') { hp = 800; speed = 48; dmg = 30; }
-      else if (type === 'janol') { hp = 1200; speed = 30; dmg = 20; range = 300; target = 'house'; }
-      else if (type === 'major') { hp = 1600; speed = 40; dmg = 35; range = 200; }
-      else if (type === 'final_boss') { hp = 2500; speed = 35; dmg = 40; }
+      if (type === 'mexicano') { hp = 400; speed = 35; dmg = 15; range = 12; }
+      else if (type === 'boss') { hp = 800; speed = 48; dmg = 30; range = 12; }
+      else if (type === 'janol') { hp = 1200; speed = 30; dmg = 20; range = 12; target = 'player'; }
+      else if (type === 'major') { hp = 1600; speed = 40; dmg = 35; range = 12; }
+      else if (type === 'final_boss') { hp = 2500; speed = 35; dmg = 40; range = 20; }
       else if (type === 'tank') { hp *= 4; speed = 10; dmg = 25; }
       else if (type === 'thrower') { hp *= 1.3; speed = 18; range = 75; dmg = 10; }
       else if (type === 'runner') { hp = 10; speed = 40; dmg = 5; }
@@ -693,7 +693,7 @@
       
       let baseSpeed = speed;
       enemies.push({ mesh, type, x, z, hp, maxHp: hp, speed, baseSpeed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult, enraged: false, chargeCooldown: 9, chargeTimer: 0, charging: false, telegraphing: false, telegraphTimer: 0, chargeVx: 0, chargeVz: 0, bottleSlowCooldown: 5, mexicanoCanTimer: 3, majorNitroTimer: 4, phaseTriggered: false });
-      showBossIntro(type);
+      showBossIntro(type, x, z);
     }
 
       let speechBubbles = [];
@@ -729,7 +729,7 @@
           }
       }
 
-      function showBossIntro(type) {
+      function showBossIntro(type, bx = 0, bz = 0) {
         if (type !== 'boss' && type !== 'final_boss' && type !== 'janol' && type !== 'mexicano' && type !== 'major') return;
         
         // Czyszczenie zwykłych wrogów przy wyjściu bossa (Pojedynek 1-na-1)
@@ -764,7 +764,7 @@
         setTimeout(() => { document.getElementById('ui-overlay').classList.remove('shaking'); }, 700);
         setTimeout(() => { introEl.classList.add('hidden'); }, 3000);
 
-        if (quotes[type]) spawnSpeechBubble(0, 0, quotes[type], 2.5);
+        if (quotes[type]) spawnSpeechBubble(bx, bz, quotes[type], 2.5);
       }
 
     function spawnParticles(x, z, colorMat) {
@@ -1205,7 +1205,7 @@
           else if (wave === 5) spawnEnemy('mexicano');
       }
       
-      let stopSpawn = (wave >= 20 && (enemies.some(e => e.type === 'final_boss') || finalBossDefeated));
+      let stopSpawn = enemies.some(e => e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major') || finalBossDefeated;
       if (!stopSpawn && wave < 20 && Math.random() < dt / Math.max(0.1, 2.5 - wave * 0.1)) spawnEnemy();
 
       // Aktualizacja wrogów
@@ -1213,7 +1213,7 @@
         const e = enemies[i];
         if(e.flashTimer > 0) {
             e.flashTimer -= dt;
-            if(e.flashTimer <= 0) e.mesh.children.forEach(c => { if(c.material && c.material.emissive && e.type !== 'boss' && e.type !== 'final_boss' && e.type !== 'janol' && e.type !== 'mexicano' && e.type !== 'major') c.material.emissive.setHex(0x000000); });
+            if(e.flashTimer <= 0 && !e.telegraphing) e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
         }
 
         if (e.hp <= 0) {
@@ -1315,13 +1315,14 @@
                     e.chargeVx = dir.x * chargeSpeed; e.chargeVz = dir.y * chargeSpeed;
                     e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xffaa00); });
                 }
+                continue;
             } else if (e.charging) {
                 e.chargeTimer -= dt;
                 e.x += e.chargeVx * dt;
                 e.z += e.chargeVz * dt;
                 e.mesh.position.set(e.x, 4 + Math.sin(e.chargeTimer * 20) * 3, e.z);
                 
-                // Uderzenie w gracza podczas szarży (jednorazowe 30 HP, nie zerowanie!)
+                // Uderzenie w gracza podczas szarży (jednorazowe 30 HP)
                 if (Math.hypot(e.x - player.x, e.z - player.z) < e.radius + player.radius + 5) {
                     player.hp = Math.max(0, player.hp - 30);
                     e.charging = false;
@@ -1336,6 +1337,7 @@
                     e.chargeCooldown = e.enraged ? 6 : 9;
                     e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
                 }
+                continue;
             } else {
                 e.chargeCooldown -= dt;
                 if (e.chargeCooldown <= 0) {
