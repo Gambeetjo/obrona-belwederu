@@ -192,8 +192,8 @@
   <script>
     const container = document.getElementById('game-container');
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#06111a');
-    scene.fog = new THREE.FogExp2('#06111a', 0.0018);
+    scene.background = new THREE.Color('#142238');
+    scene.fog = new THREE.FogExp2('#142238', 0.0010);
 
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
     camera.position.set(0, 220, 180); camera.lookAt(0, 0, 0);
@@ -203,8 +203,8 @@
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
-    const ambientLight = new THREE.AmbientLight(0x203060, 0.9); scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0x8899cc, 0.5);
+    const ambientLight = new THREE.AmbientLight(0x6078a0, 1.4); scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xb0c8f0, 1.0);
     dirLight.position.set(100, 200, 100); dirLight.castShadow = true;
     dirLight.shadow.camera.left = -250; dirLight.shadow.camera.right = 250;
     dirLight.shadow.camera.top = 250; dirLight.shadow.camera.bottom = -250;
@@ -483,7 +483,7 @@
 
       return {
         mesh: pGroup, arm: armPivot, rangeMesh: rangeMesh, legL: legL, legR: legR,
-        x: 0, z: 60, hp: 9999, maxHp: 9999, speed: 200, radius: 7,
+        x: 0, z: 60, hp: 100, maxHp: 100, speed: 200, radius: 7,
         attackRange: 38, attackAngle: Math.PI / 3, attackCooldown: 0.72, attackTimer: 0,
         dmg: 20, knockback: 18, isAttacking: false, attackAnimTimer: 0, walkAnimTimer: 0
       };
@@ -583,8 +583,8 @@
       mesh.position.set(x, 0, z); scene.add(mesh);
       
       let hp = 20 + wave * 5; let speed = 25; let dmg = 10; let range = 8;
-      if (type === 'boss') { hp = 750; speed = 12; dmg = 30; }
-      else if (type === 'final_boss') { hp = 1500; speed = 15; dmg = 40; }
+      if (type === 'boss') { hp = 750; speed = 48; dmg = 30; }
+      else if (type === 'final_boss') { hp = 1500; speed = 35; dmg = 40; }
       else if (type === 'janol') { hp = 600; speed = 10; dmg = 8; range = 300; target = 'house'; }
       else if (type === 'tank') { hp *= 4; speed = 10; dmg = 25; }
       else if (type === 'thrower') { hp *= 1.5; speed = 18; range = 70; }
@@ -600,7 +600,7 @@
       if (type === 'janol') kbMult = 0.3; // Jan Ł trochę odporny na odrzut
       
       let baseSpeed = speed;
-      enemies.push({ mesh, type, x, z, hp, maxHp: hp, speed, baseSpeed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult, enraged: false, chargeCooldown: 12, chargeTimer: 0, charging: false, chargeVx: 0, chargeVz: 0, bottleSlowCooldown: 5, phaseTriggered: false });
+      enemies.push({ mesh, type, x, z, hp, maxHp: hp, speed, baseSpeed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult, enraged: false, chargeCooldown: 9, chargeTimer: 0, charging: false, telegraphing: false, telegraphTimer: 0, chargeVx: 0, chargeVz: 0, bottleSlowCooldown: 5, phaseTriggered: false });
       showBossIntro(type);
     }
 
@@ -1122,36 +1122,54 @@
             spawnParticles(e.x, e.z, mats.blood);
             document.getElementById('ui-overlay').classList.add('shaking');
             setTimeout(() => document.getElementById('ui-overlay').classList.remove('shaking'), 700);
-            if (e.type === 'boss') { e.speed = e.baseSpeed * 1.6; e.cooldown = 0; } // Barnej: szybszy, atakuje od razu
+            if (e.type === 'boss') { e.speed = e.baseSpeed * 1.35; e.cooldown = 0; } // Barnej: szybszy w szału (65 speed)
             if (e.type === 'final_boss') { e.aoeCooldown = 1; } // Srradek: natychmiastowe AoE
             if (e.type === 'janol') { e.bottleSlowCooldown = 2; } // Jan Ł: 2x częstsze butelki
         }
 
-        // --- BARNEJ: SZARŻA ---
+        // --- BARNEJ: SZARŻA Z SYGNALIZACJĄ (TELEGRAPH) ---
         if (e.type === 'boss') {
-            if (e.charging) {
+            if (e.telegraphing) {
+                e.telegraphTimer -= dt;
+                e.speed = 0;
+                e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xff2200); });
+                if (e.telegraphTimer <= 0) {
+                    e.telegraphing = false;
+                    e.charging = true;
+                    e.chargeTimer = 0.6;
+                    const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
+                    const chargeSpeed = 230;
+                    e.chargeVx = dir.x * chargeSpeed; e.chargeVz = dir.y * chargeSpeed;
+                    e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xffaa00); });
+                }
+            } else if (e.charging) {
                 e.chargeTimer -= dt;
                 e.x += e.chargeVx * dt;
                 e.z += e.chargeVz * dt;
                 e.mesh.position.set(e.x, 4 + Math.sin(e.chargeTimer * 20) * 3, e.z);
-                // uderzenie w gracza podczas szarży
+                
+                // Uderzenie w gracza podczas szarży (jednorazowe 30 HP, nie zerowanie!)
                 if (Math.hypot(e.x - player.x, e.z - player.z) < e.radius + player.radius + 5) {
-                    player.hp -= 45;
+                    player.hp = Math.max(0, player.hp - 30);
                     e.charging = false;
+                    e.speed = e.enraged ? e.baseSpeed * 1.35 : e.baseSpeed;
+                    e.chargeCooldown = e.enraged ? 6 : 9;
+                    e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
                     spawnParticles(player.x, player.z, mats.blood);
                 }
-                if (e.chargeTimer <= 0) { e.charging = false; e.speed = e.enraged ? e.baseSpeed * 1.6 : e.baseSpeed; e.chargeCooldown = e.enraged ? 7 : 12; }
+                if (e.chargeTimer <= 0) {
+                    e.charging = false;
+                    e.speed = e.enraged ? e.baseSpeed * 1.35 : e.baseSpeed;
+                    e.chargeCooldown = e.enraged ? 6 : 9;
+                    e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
+                }
             } else {
                 e.chargeCooldown -= dt;
                 if (e.chargeCooldown <= 0) {
-                    // Szarża!
-                    e.charging = true; e.chargeTimer = 0.7; e.speed = 0;
-                    const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
-                    const chargeSpeed = 350;
-                    e.chargeVx = dir.x * chargeSpeed; e.chargeVz = dir.y * chargeSpeed;
-                    // Efekt wizualny - rozbłysk
-                    e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xff6600); });
-                    setTimeout(() => e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); }), 300);
+                    // Rozpoczęcie sygnalizacji szarży (0.8s ostrzeżenia dla gracza)
+                    e.telegraphing = true;
+                    e.telegraphTimer = 0.8;
+                    e.speed = 0;
                 }
             }
         }
