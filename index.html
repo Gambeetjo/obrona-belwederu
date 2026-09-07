@@ -1408,8 +1408,14 @@
                     projectiles.push({ mesh: pMesh, x: e.x, z: e.z, vx: dir.x*45, vz: dir.y*45, dmg: 10, target: e.target, life: 3.5 });
                 } else {
                     e.cooldown = 0.85; e.lungeTimer = 0.2;
-                    if (e.target === 'player') player.hp -= e.dmg;
-                    else { house.hp -= e.dmg; house.lastHitTime = performance.now(); }
+                    // Obrażenia bezpośrednie zadawane TYLKO w prawdziwym zwarciu (fizyczna bliskość)
+                    const realDist = Math.hypot(tx - e.x, tz - e.z);
+                    if (realDist <= e.radius + targetRadius + 6) {
+                        let dealtDmg = e.dmg;
+                        if (e.target === 'player' && player.shieldLevel) dealtDmg *= (1 - player.shieldLevel);
+                        if (e.target === 'player') player.hp -= dealtDmg;
+                        else { house.hp -= dealtDmg; house.lastHitTime = performance.now(); }
+                    }
                 }
             }
         }
