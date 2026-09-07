@@ -527,7 +527,7 @@
 
       return {
         mesh: pGroup, arm: armPivot, rangeMesh: rangeMesh, legL: legL, legR: legR,
-        x: 0, z: 60, hp: 100, maxHp: 100, speed: 200, radius: 7,
+        x: 0, z: 60, hp: 9999, maxHp: 9999, speed: 170, radius: 7,
         attackRange: 38, attackAngle: Math.PI / 3, attackCooldown: 0.72, attackTimer: 0,
         dmg: 20, knockback: 18, isAttacking: false, attackAnimTimer: 0, walkAnimTimer: 0
       };
@@ -1104,7 +1104,7 @@
           }
       }
 
-      // Atak Gracza
+      // Atak Gracza (Auto-atak + ręczny atak Enter/Spacja/Kliknięcie)
       player.attackTimer -= dt;
       if (player.attackTimer <= 0) {
         let searchRange = player.attackRange;
@@ -1115,27 +1115,7 @@
         });
 
         if (targetEnemy) {
-            player.isAttacking = true; player.attackAnimTimer = 0.3; player.attackTimer = player.attackCooldown;
-            player.mesh.rotation.y = Math.atan2(targetEnemy.x - player.x, targetEnemy.z - player.z);
-            const hitVector = new THREE.Vector2(targetEnemy.x - player.x, targetEnemy.z - player.z).normalize();
-            
-            enemies.forEach(e => {
-                let dist = Math.hypot(e.x - player.x, e.z - player.z) - e.radius - player.radius;
-                if (dist <= player.attackRange + 5) {
-                    if (dist < 1) dist = 1; 
-                    const dirToE = new THREE.Vector2(e.x - player.x, e.z - player.z).normalize();
-                    if (Math.acos(Math.max(-1, Math.min(1, hitVector.dot(dirToE)))) <= player.attackAngle) {
-                        let finalDmg = player.dmg;
-                        if (player.critChance && Math.random() < player.critChance) finalDmg *= 2;
-                        e.hp -= finalDmg; e.flashTimer = 0.1;
-            if (player.lifesteal) player.hp = Math.min(player.maxHp, player.hp + player.lifesteal);
-                        e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x550000); });
-                        e.x += dirToE.x * player.knockback * (e.knockbackMult !== undefined ? e.knockbackMult : 1.0); 
-                        e.z += dirToE.y * player.knockback * (e.knockbackMult !== undefined ? e.knockbackMult : 1.0);
-                        spawnParticles(e.x, e.z, mats.blood);
-                    }
-                }
-            });
+            performPlayerAttack();
         }
       }
 
@@ -1650,13 +1630,73 @@
     }
 
 
+    function performPlayerAttack() {
+      if (gameState !== 'playing' || !player || player.attackTimer > 0) return;
+      
+      player.isAttacking = true; 
+      player.attackAnimTimer = 0.3; 
+      player.attackTimer = player.attackCooldown;
+
+      let hitVector = new THREE.Vector2(0, 1);
+      let closestDist = player.attackRange + 100; let targetEnemy = null;
+      enemies.forEach(e => {
+          const dist = Math.hypot(e.x - player.x, e.z - player.z) - e.radius - player.radius;
+          if (dist < closestDist) { closestDist = dist; targetEnemy = e; }
+      });
+
+      if (targetEnemy) {
+          player.mesh.rotation.y = Math.atan2(targetEnemy.x - player.x, targetEnemy.z - player.z);
+          hitVector = new THREE.Vector2(targetEnemy.x - player.x, targetEnemy.z - player.z).normalize();
+      } else {
+          hitVector = new THREE.Vector2(Math.sin(player.mesh.rotation.y), Math.cos(player.mesh.rotation.y)).normalize();
+      }
+
+      enemies.forEach(e => {
+          let dist = Math.hypot(e.x - player.x, e.z - player.z) - e.radius - player.radius;
+          if (dist <= player.attackRange + 5) {
+              if (dist < 1) dist = 1; 
+              const dirToE = new THREE.Vector2(e.x - player.x, e.z - player.z).normalize();
+              if (Math.acos(Math.max(-1, Math.min(1, hitVector.dot(dirToE)))) <= player.attackAngle) {
+                  let finalDmg = player.dmg;
+                  if (player.critChance && Math.random() < player.critChance) finalDmg *= 2;
+                  if (player.fireLevel) { e.burnTimer = 3.0; e.burnDmg = player.fireLevel * 10; }
+                  e.hp -= finalDmg; e.flashTimer = 0.1;
+                  if (player.lifesteal) player.hp = Math.min(player.maxHp, player.hp + player.lifesteal);
+                  e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x550000); });
+                  e.x += dirToE.x * player.knockback * (e.knockbackMult !== undefined ? e.knockbackMult : 1.0); 
+                  e.z += dirToE.y * player.knockback * (e.knockbackMult !== undefined ? e.knockbackMult : 1.0);
+                  spawnParticles(e.x, e.z, mats.blood);
+              }
+          }
+      });
+
+      // Zbijanie / parowanie pocisków w locie
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+          const p = projectiles[i];
+          if (!p.isPlayer && !p.isGift && Math.hypot(p.x - player.x, p.z - player.z) < player.attackRange + 15) {
+              spawnParticles(p.x, p.z, new THREE.MeshBasicMaterial({color: 0xffff00}));
+              spawnSpeechBubble(player.x, player.z, 'ZBIJCIE! 🪓', 1.0);
+              scene.remove(p.mesh);
+              projectiles.splice(i, 1);
+          }
+      }
+    }
+
     window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     document.addEventListener('keydown', e => {
       const k = e.key.toLowerCase(); if (keys.hasOwnProperty(k)) keys[k] = true;
+      if (k === 'enter' || k === ' ' || k === 'spacebar') {
+          if (gameState === 'playing') performPlayerAttack();
+      }
       if ((k === 'p' || k === 'escape') && gameState === 'playing') { gameState = 'paused'; document.getElementById('pause-screen').classList.remove('hidden'); }
       else if ((k === 'p' || k === 'escape') && gameState === 'paused') resumeGame();
     });
     document.addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (keys.hasOwnProperty(k)) keys[k] = false; });
+    document.addEventListener('mousedown', e => {
+      if (gameState === 'playing' && e.target.tagName !== 'BUTTON' && !e.target.closest('.bonus-card')) {
+          performPlayerAttack();
+      }
+    });
 
     let touchStartX = 0, touchStartY = 0; const bodyEl = document.body;
     bodyEl.addEventListener('touchstart', e => {
