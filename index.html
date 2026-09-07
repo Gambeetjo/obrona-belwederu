@@ -419,18 +419,12 @@
         const pl2 = new THREE.Mesh(geos.box, fenceMat); pl2.scale.set(len2, 3, 1.8); pl2.position.set(mx, 3.5, mz); pl2.rotation.y = ay; scene.add(pl2);
     }
 
-    // Ławka obok domku
-    const benchMat = new THREE.MeshStandardMaterial({ color: 0x7a5c3c });
-    const benchGroup = new THREE.Group();
-    const bSeat = new THREE.Mesh(geos.box, benchMat); bSeat.scale.set(18, 2, 6); bSeat.position.y = 5;
-    const bBack = new THREE.Mesh(geos.box, benchMat); bBack.scale.set(18, 5, 1.5); bBack.position.set(0, 8.5, -3);
-    [-7, 7].forEach(bx => { const leg = new THREE.Mesh(geos.box, fPostMat); leg.scale.set(1.5, 5, 6); leg.position.set(bx, 2, 0); benchGroup.add(leg); });
-    benchGroup.add(bSeat, bBack); benchGroup.position.set(-40, 0, 36); benchGroup.rotation.y = 0.5; scene.add(benchGroup);
+
 
     // --- STAN GRY ---
     let gameState = 'start'; let lastTime = 0;
     const house = { mesh: houseMesh, hp: 9999, maxHp: 9999, radius: 28, lastHitTime: 0, regenRate: 2 };
-    let player = {}; let enemies = []; let particles = []; let projectiles = []; let pickups = []; let flyingMilks = [];
+    let player = {}; let enemies = []; let particles = []; let projectiles = []; let pickups = []; let flyingMilks = []; let flyingNitros = [];
     let policeCar = null; let coalTimer = 0;
     let wave = 1; let score = 0; let xp = 0; let level = 1; let xpNeeded = 5; let waveTimer = 0; let pickupTimer = 0;
     let finalBossDefeated = false; let aoeAttacks = []; let ambulance = null; let endingSequence = false;
@@ -792,14 +786,20 @@
       if(player.mesh) scene.remove(player.mesh);
       
       player = createPlayer(); updateRangeIndicator(); player.coalLevel = 0;
-      house.hp = 100; house.maxHp = 100; house.lastHitTime = 0; house.armor = 0;
+      house.hp = 150; house.maxHp = 150; house.lastHitTime = 0; house.armor = 0; house.spikeDmg = 0;
       wave = 1; score = 0; xp = 0; level = 1; xpNeeded = 5; waveTimer = 0; pickupTimer = 0; coalTimer = 0;
       player.regenTimer = 0; player.rainTimer = 0; 
       finalBossDefeated = false; endingSequence = false;
       upgradesPool.forEach(u => u.level = 0); updateUI();
       
+      comboCount = 0; comboTimer = 0;
+      document.getElementById('combo-display').classList.add('hidden');
+      document.getElementById('boss-arrow').classList.add('hidden');
+      document.getElementById('boss-intro').classList.add('hidden');
+      document.getElementById('boss-hud').classList.add('hidden');
+      document.getElementById('boss-name').classList.remove('enraged');
       gameState = 'playing'; lastTime = performance.now();
-      document.getElementById('start-screen').classList.add('hidden'); document.getElementById('gameover-screen').classList.add('hidden');
+      document.getElementById('start-screen').classList.add('hidden'); document.getElementById('gameover-screen').classList.add('hidden'); document.getElementById('pause-screen').classList.add('hidden');
       document.getElementById('hud').classList.remove('hidden');
     }
 
