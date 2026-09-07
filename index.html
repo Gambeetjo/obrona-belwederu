@@ -1446,8 +1446,16 @@
                   }
               });
           } else {
-              if (p.target === 'player' && Math.hypot(p.x - player.x, p.z - player.z) < player.radius + 4) {
-                  player.hp -= p.dmg; spawnParticles(player.x, player.z, mats.blood); hit = true;
+              // Zbijanie/Parowanie pocisków wroga zamachem kulachy w locie!
+              if (player.isAttacking && Math.hypot(p.x - player.x, p.z - player.z) < player.attackRange + 12) {
+                  spawnParticles(p.x, p.z, new THREE.MeshBasicMaterial({color: 0xffff00}));
+                  spawnSpeechBubble(player.x, player.z, 'ZBIJCIE! 🪓', 1.0);
+                  hit = true;
+              } else if (p.target === 'player' && Math.hypot(p.x - player.x, p.z - player.z) < player.radius + 4) {
+                  let incomingDmg = p.dmg;
+                  if (player.shieldLevel) incomingDmg *= (1 - player.shieldLevel);
+                  player.hp = Math.max(0, player.hp - incomingDmg);
+                  spawnParticles(player.x, player.z, mats.blood); hit = true;
               } else if (p.target === 'house' && Math.hypot(p.x, p.z) < house.radius + 4) {
                   let incomingDmg = p.dmg;
                   if (house.armor) incomingDmg *= (1 - house.armor);
