@@ -39,6 +39,22 @@
     .hp-track { width: 220px; height: 18px; background: #333; border: 2px solid #000; margin-top: 8px; }
     .hp-bar { height: 100%; background: #d64542; transition: width 0.2s; }
     #house-hp-bar { background: #74bf49; }
+    #combo-display {
+      position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 32px; font-family: "Press Start 2P", monospace;
+      color: #ffdd00; text-shadow: 0 0 20px #ff8800, 3px 3px 0 #000;
+      pointer-events: none; z-index: 30;
+      animation: comboPop 0.2s ease-out;
+    }
+    @keyframes comboPop { from { transform: translate(-50%,-50%) scale(1.8); opacity:0; } to { transform: translate(-50%,-50%) scale(1); opacity:1; } }
+    #boss-arrow {
+      position: absolute; width: 0; height: 0;
+      border-left: 14px solid transparent; border-right: 14px solid transparent;
+      border-bottom: 28px solid #ff3300;
+      pointer-events: none; z-index: 25;
+      filter: drop-shadow(0 0 8px #ff0000);
+    }
+
     .btn {
       border: 4px solid var(--cream); padding: 15px 30px; font-size: 18px;
       font-family: inherit; font-weight: bold; background: #c55b25; color: var(--cream);
@@ -146,7 +162,10 @@
         <div id="boss-intro-name"></div>
         <div id="boss-intro-sub"></div>
       </div>
+      <div id="combo-display" class="hidden"></div>
+      <div id="boss-arrow" class="hidden"></div>
     </header>
+
 
     <div id="start-screen" class="screen">
       <h1>Obrona Belwederu 3D</h1>
@@ -173,8 +192,8 @@
   <script>
     const container = document.getElementById('game-container');
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#0e1d26');
-    scene.fog = new THREE.Fog('#0e1d26', 150, 450);
+    scene.background = new THREE.Color('#06111a');
+    scene.fog = new THREE.FogExp2('#06111a', 0.0018);
 
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
     camera.position.set(0, 220, 180); camera.lookAt(0, 0, 0);
@@ -184,11 +203,12 @@
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xfff0dd, 0.8);
+    const ambientLight = new THREE.AmbientLight(0x203060, 0.9); scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0x8899cc, 0.5);
     dirLight.position.set(100, 200, 100); dirLight.castShadow = true;
     dirLight.shadow.camera.left = -250; dirLight.shadow.camera.right = 250;
     dirLight.shadow.camera.top = 250; dirLight.shadow.camera.bottom = -250;
+
     scene.add(dirLight);
 
     // --- TEKSTURY (Canvas API) ---
@@ -295,8 +315,49 @@
 
     // --- ŚRODOWISKO I PRZESZKODY ---
     const obstacles = [];
-    const ground = new THREE.Mesh(new THREE.BoxGeometry(1200, 10, 1200), mats.ground);
+
+    // Teksturowana trawa
+    function createGroundTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 512; const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#1a4a2e'; ctx.fillRect(0, 0, 512, 512);
+        for (let i = 0; i < 700; i++) {
+            const x = Math.random() * 512; const y = Math.random() * 512;
+            const shade = Math.random();
+            ctx.fillStyle = shade > 0.6 ? '#2d7a45' : (shade > 0.3 ? '#1e5c34' : '#153d24');
+            const s = 6 + Math.random() * 20; ctx.fillRect(x, y, s, s);
+        }
+        for (let i = 0; i < 50; i++) {
+            const x = Math.random() * 512; const y = Math.random() * 512;
+            ctx.fillStyle = '#3a3a3a'; const s = 3 + Math.random() * 7;
+            ctx.beginPath(); ctx.ellipse(x, y, s, s*0.6, Math.random()*Math.PI, 0, Math.PI*2); ctx.fill();
+        }
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(6, 6); tex.magFilter = THREE.NearestFilter; return tex;
+    }
+    const ground = new THREE.Mesh(new THREE.BoxGeometry(1200, 10, 1200),
+        new THREE.MeshStandardMaterial({ map: createGroundTexture(), roughness: 1 }));
     ground.position.y = -5; ground.receiveShadow = true; scene.add(ground);
+
+    // Gwiazdy
+    const starsGeo = new THREE.BufferGeometry();
+    const starVerts = [];
+    for (let i = 0; i < 900; i++) {
+        starVerts.push((Math.random()-0.5)*2000, 200 + Math.random()*400, (Math.random()-0.5)*2000);
+    }
+    starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+    scene.add(new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 2.5, sizeAttenuation: false })));
+
+    // Latarnia przy domku z dynamicznym światłem
+    const lanternLight = new THREE.PointLight(0xffaa44, 3, 130); lanternLight.position.set(32, 38, 22); scene.add(lanternLight);
+    const lanternGroup = new THREE.Group();
+    const lPole = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x5c4033})); lPole.scale.set(1.2, 36, 1.2); lPole.position.y = 18;
+    const lHead = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x222222})); lHead.scale.set(7, 7, 7); lHead.position.y = 38;
+    const lGlow = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0xffcc44})); lGlow.scale.set(3.5, 3.5, 3.5); lGlow.position.y = 38;
+    lanternGroup.add(lPole, lHead, lGlow); lanternGroup.position.set(32, 0, 22); scene.add(lanternGroup);
+    let torchFlicker = 0;
+
 
     for(let i=0; i<50; i++) {
         const tree = new THREE.Group();
@@ -342,6 +403,30 @@
     houseMesh.add(base, roof, chimney, door, step1, step2, win1Group); scene.add(houseMesh);
     obstacles.push({ x: 0, z: 0, radius: 26, isHouse: true });
 
+    // Płot wokół domku
+    const fenceMat = new THREE.MeshStandardMaterial({ color: 0x8b5e3c });
+    const fPostMat = new THREE.MeshStandardMaterial({ color: 0x6b4423 });
+    const fenceRadius = 58; const numPosts = 30;
+    for (let i = 0; i < numPosts; i++) {
+        const fa = (i / numPosts) * Math.PI * 2;
+        const fx = Math.cos(fa) * fenceRadius; const fz = Math.sin(fa) * fenceRadius;
+        const post = new THREE.Mesh(geos.box, fPostMat); post.scale.set(2.5, 12, 2.5); post.position.set(fx, 6, fz); post.castShadow = true; scene.add(post);
+        const na = ((i+1) / numPosts) * Math.PI * 2;
+        const nx2 = Math.cos(na) * fenceRadius; const nz2 = Math.sin(na) * fenceRadius;
+        const mx = (fx+nx2)/2; const mz = (fz+nz2)/2; const len2 = Math.hypot(nx2-fx, nz2-fz);
+        const ay = Math.atan2(nz2-fz, nx2-fx);
+        const pl1 = new THREE.Mesh(geos.box, fenceMat); pl1.scale.set(len2, 3, 1.8); pl1.position.set(mx, 9, mz); pl1.rotation.y = ay; pl1.castShadow = true; scene.add(pl1);
+        const pl2 = new THREE.Mesh(geos.box, fenceMat); pl2.scale.set(len2, 3, 1.8); pl2.position.set(mx, 3.5, mz); pl2.rotation.y = ay; scene.add(pl2);
+    }
+
+    // Ławka obok domku
+    const benchMat = new THREE.MeshStandardMaterial({ color: 0x7a5c3c });
+    const benchGroup = new THREE.Group();
+    const bSeat = new THREE.Mesh(geos.box, benchMat); bSeat.scale.set(18, 2, 6); bSeat.position.y = 5;
+    const bBack = new THREE.Mesh(geos.box, benchMat); bBack.scale.set(18, 5, 1.5); bBack.position.set(0, 8.5, -3);
+    [-7, 7].forEach(bx => { const leg = new THREE.Mesh(geos.box, fPostMat); leg.scale.set(1.5, 5, 6); leg.position.set(bx, 2, 0); benchGroup.add(leg); });
+    benchGroup.add(bSeat, bBack); benchGroup.position.set(-40, 0, 36); benchGroup.rotation.y = 0.5; scene.add(benchGroup);
+
     // --- STAN GRY ---
     let gameState = 'start'; let lastTime = 0;
     const house = { mesh: houseMesh, hp: 9999, maxHp: 9999, radius: 28, lastHitTime: 0, regenRate: 2 };
@@ -349,7 +434,9 @@
     let policeCar = null; let coalTimer = 0;
     let wave = 1; let score = 0; let xp = 0; let level = 1; let xpNeeded = 5; let waveTimer = 0; let pickupTimer = 0;
     let finalBossDefeated = false; let aoeAttacks = []; let ambulance = null; let endingSequence = false;
+    let comboCount = 0; let comboTimer = 0;
     const keys = { w:false, a:false, s:false, d:false }; let joystick = { active: false, x: 0, y: 0 };
+
 
     const upgradesPool = [
       { id: 'dmg', name: 'Ostra Kulacha', desc: 'Obrażenia bazowe +15.', level: 0, max: 4, minLevel: 1, apply: () => player.dmg += 15 },
@@ -989,15 +1076,30 @@ A    }
         }
 
         if (e.hp <= 0) {
-          score += (e.type === 'boss' || e.type === 'final_boss' ? 100 : 10); xp += (e.type === 'boss' || e.type === 'final_boss' ? 5 : 1);
-          spawnParticles(e.x, e.z, e.mesh.children[0].material);
+          score += (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' ? 100 : 10);
+          xp += (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' ? 5 : 1);
+          // Eksplozja kawałków
+          const bodyMat = e.mesh.children[0].material;
+          for (let k = 0; k < 8; k++) {
+              const chunk = new THREE.Mesh(geos.box, bodyMat);
+              const cs = 2 + Math.random() * 4; chunk.scale.set(cs, cs, cs);
+              chunk.position.set(e.x, 8, e.z); scene.add(chunk);
+              particles.push({ mesh: chunk, vx: (Math.random()-0.5)*50, vy: 15 + Math.random()*25, vz: (Math.random()-0.5)*50, life: 0.8, isChunk: true });
+          }
+          // Combo
+          comboCount++; comboTimer = 2.5;
+          if (comboCount >= 2) {
+              const comboEl = document.getElementById('combo-display');
+              comboEl.textContent = comboCount + 'x COMBO!';
+              comboEl.classList.remove('hidden');
+              comboEl.style.animation = 'none'; void comboEl.offsetWidth; comboEl.style.animation = 'comboPop 0.2s ease-out';
+          }
           if (e.type === 'final_boss') {
-              finalBossDefeated = true;
-              endingSequence = true;
-              spawnAmbulance();
+              finalBossDefeated = true; endingSequence = true; spawnAmbulance();
           }
           scene.remove(e.mesh); enemies.splice(i, 1); checkLevelUp(); continue;
         }
+
 
         // --- FAZY HP (wściekłość po 50%) ---
         if (!e.phaseTriggered && e.hp <= e.maxHp * 0.5 && (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol')) {
@@ -1244,8 +1346,44 @@ A    }
     function animate() {
       requestAnimationFrame(animate);
       const now = performance.now(); const dt = Math.min((now - lastTime) / 1000, 0.1); lastTime = now;
-      update(dt); renderer.render(scene, camera);
+      update(dt);
+
+      // Fluktuacja latarni (płomień)
+      torchFlicker += dt * 8;
+      lanternLight.intensity = 2.5 + Math.sin(torchFlicker) * 0.5 + Math.sin(torchFlicker * 2.3) * 0.3;
+
+      // Combo timer
+      if (comboTimer > 0) {
+          comboTimer -= dt;
+          if (comboTimer <= 0) {
+              comboCount = 0;
+              document.getElementById('combo-display').classList.add('hidden');
+          }
+      }
+
+      // Strzałka bossa gdy poza kadrem
+      const bossArrow = document.getElementById('boss-arrow');
+      const activeBoss = enemies.find(e => e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol');
+      if (activeBoss && gameState === 'playing') {
+          // Prosta projekcja 2D
+          const bPos = new THREE.Vector3(activeBoss.x, 12, activeBoss.z);
+          bPos.project(camera);
+          const inView = bPos.x >= -1 && bPos.x <= 1 && bPos.y >= -1 && bPos.y <= 1;
+          if (!inView) {
+              bossArrow.classList.remove('hidden');
+              const sw = window.innerWidth; const sh = window.innerHeight;
+              const margin = 40;
+              const ax = Math.max(margin, Math.min(sw - margin, (bPos.x * 0.5 + 0.5) * sw));
+              const ay = Math.max(margin, Math.min(sh - margin, (-bPos.y * 0.5 + 0.5) * sh));
+              const angle = Math.atan2(bPos.y, bPos.x) - Math.PI / 2;
+              bossArrow.style.left = ax + 'px'; bossArrow.style.top = ay + 'px';
+              bossArrow.style.transform = `rotate(${angle}rad)`;
+          } else { bossArrow.classList.add('hidden'); }
+      } else { bossArrow.classList.add('hidden'); }
+
+      renderer.render(scene, camera);
     }
+
 
     window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     document.addEventListener('keydown', e => {
