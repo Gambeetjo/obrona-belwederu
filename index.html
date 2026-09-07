@@ -517,13 +517,15 @@
       if (type === 'boss') { bodyMat = mats.suitMat; w = 8; h = 12; d = 8; yOff = 6; }
       else if (type === 'final_boss') { bodyMat = mats.suitMat; w = 16; h = 24; d = 16; yOff = 12; }
       else if (type === 'janol') { bodyMat = new THREE.MeshStandardMaterial({color: 0x2244aa}); w = 7; h = 11; d = 7; yOff = 5.5; }
+      else if (type === 'mexicano') { bodyMat = new THREE.MeshStandardMaterial({color: 0xddaa22}); w = 7; h = 10; d = 7; yOff = 5.0; }
+      else if (type === 'major') { bodyMat = new THREE.MeshStandardMaterial({color: 0x3b5323}); w = 9; h = 12; d = 9; yOff = 6.0; }
       else if (type === 'tank') { bodyMat = mats.enemyMops; w = 8; h = 11; d = 8; yOff = 5.5; }
       else if (type === 'thrower') { bodyMat = mats.enemyListonosz; w = 5; h = 8; d = 5; yOff = 4.0; }
       else if (type === 'runner') { bodyMat = mats.enemyRunner; w = 4; h = 10; d = 4; yOff = 5.0; }
       else { bodyMat = mats.enemyGimbus; }
 
       const body = new THREE.Mesh(geos.box, bodyMat); body.scale.set(w, h, d); body.position.y = yOff; body.castShadow = true;
-      const head = new THREE.Mesh(geos.box, (type === 'boss' || type === 'final_boss') ? [mats.skinTone, mats.skinTone, mats.skinTone, mats.skinTone, mats.bossFace, mats.skinTone] : mats.skinTone); head.scale.set(w*0.8, h*0.4, d*0.8); head.position.y = yOff + h/2 + h*0.2; head.castShadow = true;
+      const head = new THREE.Mesh(geos.box, (type === 'boss' || type === 'final_boss' || type === 'mexicano' || type === 'major') ? [mats.skinTone, mats.skinTone, mats.skinTone, mats.skinTone, mats.bossFace, mats.skinTone] : mats.skinTone); head.scale.set(w*0.8, h*0.4, d*0.8); head.position.y = yOff + h/2 + h*0.2; head.castShadow = true;
       
       const armL = new THREE.Mesh(geos.box, bodyMat); armL.scale.set(w*0.3, h*0.7, d*0.4); armL.position.set(-w/2 - w*0.15, yOff + h*0.1, 0); armL.castShadow = true;
       const armR = new THREE.Mesh(geos.box, bodyMat); armR.scale.set(w*0.3, h*0.7, d*0.4); armR.position.set(w/2 + w*0.15, yOff + h*0.1, 0); armR.castShadow = true;
@@ -537,6 +539,20 @@
           const hair = new THREE.Mesh(geos.box, type === 'final_boss' ? new THREE.MeshStandardMaterial({color: 0x222222}) : mats.grayHairMat); hair.scale.set(w*0.85, h*0.15, d*0.85); hair.position.set(0, yOff + h + h*0.1, 0);
           const cigar = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x5c4033})); cigar.scale.set(0.4, w*0.8, 0.4); cigar.rotation.z = Math.PI/4; cigar.position.set(w/2 + w*0.3, yOff + h*0.1, d*0.5);
           group.add(shirt, bowtie, mustache, hair, cigar);
+      } else if (type === 'mexicano') {
+          const cap = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x111111}));
+          cap.scale.set(w*0.85, h*0.15, d*0.85); cap.position.set(0, yOff + h/2 + h*0.35, 0);
+          const peak = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x111111}));
+          peak.scale.set(w*0.85, h*0.05, d*0.5); peak.position.set(0, yOff + h/2 + h*0.35, -d*0.5);
+          const can = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xcc9900}));
+          can.scale.set(0.6, 2.5, 0.6); can.position.set(w/2 + w*0.2, yOff, d*0.3);
+          group.add(cap, peak, can);
+      } else if (type === 'major') {
+          const helmet = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x2e3d20}));
+          helmet.scale.set(w*0.9, h*0.25, d*0.9); helmet.position.set(0, yOff + h/2 + h*0.3, 0);
+          const bowl = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xdddddd}));
+          bowl.scale.set(1.5, 1.2, 1.5); bowl.position.set(w/2 + w*0.25, yOff - h*0.1, d*0.3);
+          group.add(helmet, bowl);
       } else if (type === 'normal') {
           const backpack = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x333333}));
           backpack.scale.set(w*0.8, h*0.6, d*0.5); backpack.position.set(0, yOff, -d/2 - d*0.25); backpack.castShadow = true;
@@ -560,7 +576,7 @@
           group.add(glasses);
       }
 
-      const labelText = type === 'final_boss' ? 'SRRADEK' : (type === 'boss' ? 'BARNEJ' : (type === 'janol' ? 'JAN Ł' : (type === 'tank' ? 'MOPS' : (type === 'thrower' ? 'LISTONOSZ' : (type === 'runner' ? 'EKOLUDEK' : 'GIMBUS')))));
+      const labelText = type === 'final_boss' ? 'SRRADEK' : (type === 'major' ? 'MAJOR' : (type === 'janol' ? 'JAN Ł' : (type === 'boss' ? 'BARNEJ' : (type === 'mexicano' ? 'MEXICANO' : (type === 'tank' ? 'MOPS' : (type === 'thrower' ? 'LISTONOSZ' : (type === 'runner' ? 'EKOLUDEK' : 'GIMBUS')))))));
       const label = createTextSprite(labelText);
       label.position.y = yOff + h + 2;
       group.add(label);
@@ -583,9 +599,11 @@
       mesh.position.set(x, 0, z); scene.add(mesh);
       
       let hp = 20 + wave * 5; let speed = 25; let dmg = 10; let range = 8;
-      if (type === 'boss') { hp = 750; speed = 48; dmg = 30; }
-      else if (type === 'final_boss') { hp = 1500; speed = 35; dmg = 40; }
-      else if (type === 'janol') { hp = 600; speed = 30; dmg = 18; range = 300; target = 'house'; }
+      if (type === 'mexicano') { hp = 400; speed = 35; dmg = 15; range = 180; }
+      else if (type === 'boss') { hp = 800; speed = 48; dmg = 30; }
+      else if (type === 'janol') { hp = 1200; speed = 30; dmg = 20; range = 300; target = 'house'; }
+      else if (type === 'major') { hp = 1600; speed = 40; dmg = 35; range = 200; }
+      else if (type === 'final_boss') { hp = 2500; speed = 35; dmg = 40; }
       else if (type === 'tank') { hp *= 4; speed = 10; dmg = 25; }
       else if (type === 'thrower') { hp *= 1.5; speed = 18; range = 70; }
       else if (type === 'runner') { hp = 10; speed = 40; dmg = 5; }
@@ -593,21 +611,23 @@
       let target = 'player';
       if (type === 'thrower' || type === 'runner') target = 'house';
       
-      let radius = (type === 'boss') ? 12 : (type === 'final_boss' ? 24 : (type === 'tank' ? 10 : 6));
+      let radius = (type === 'boss' || type === 'major') ? 12 : (type === 'final_boss' ? 24 : (type === 'tank' ? 10 : 6));
       let kbMult = 1.0;
+      if (type === 'mexicano') kbMult = 0.7;
       if (type === 'boss') kbMult = 0.5;
+      if (type === 'janol') kbMult = 0.3;
+      if (type === 'major') kbMult = 0.2;
       if (type === 'final_boss') kbMult = 0.1;
-      if (type === 'janol') kbMult = 0.3; // Jan Ł trochę odporny na odrzut
       
       let baseSpeed = speed;
-      enemies.push({ mesh, type, x, z, hp, maxHp: hp, speed, baseSpeed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult, enraged: false, chargeCooldown: 9, chargeTimer: 0, charging: false, telegraphing: false, telegraphTimer: 0, chargeVx: 0, chargeVz: 0, bottleSlowCooldown: 5, phaseTriggered: false });
+      enemies.push({ mesh, type, x, z, hp, maxHp: hp, speed, baseSpeed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult, enraged: false, chargeCooldown: 9, chargeTimer: 0, charging: false, telegraphing: false, telegraphTimer: 0, chargeVx: 0, chargeVz: 0, bottleSlowCooldown: 5, mexicanoCanTimer: 3, majorNitroTimer: 4, phaseTriggered: false });
       showBossIntro(type);
     }
 
     function showBossIntro(type) {
-      if (type !== 'boss' && type !== 'final_boss' && type !== 'janol') return;
-      const names = { boss: 'BARNEJ!', final_boss: 'SRRADEK!!', janol: 'JAN Ł / RODO!' };
-      const subs = { boss: 'Przywódca Wydziału Repasji', final_boss: 'Ostateczny Boss', janol: 'Buntownik z butelką' };
+      if (type !== 'boss' && type !== 'final_boss' && type !== 'janol' && type !== 'mexicano' && type !== 'major') return;
+      const names = { mexicano: 'MEXICANO TV!', boss: 'BARNEJ!', janol: 'JAN Ł / RODO!', major: 'MAJOR SUCHODOLSKI!', final_boss: 'SRRADEK!!' };
+      const subs = { mexicano: 'Najłatwiejszy Boss (Fala 5)', boss: 'Przywódca Wydziału Repasji (Fala 10)', janol: 'Buntownik z Butelką (Fala 15)', major: 'Wojownik z Bombasu (Fala 18)', final_boss: 'Ostateczny Boss (Fala 20)' };
       const introEl = document.getElementById('boss-intro');
       const nameEl = document.getElementById('boss-intro-name');
       const subEl = document.getElementById('boss-intro-sub');
@@ -851,10 +871,10 @@
       document.getElementById('level-num').innerText = level; document.getElementById('xp-text').innerText = `${xp}/${xpNeeded}`;
       
       const bossHud = document.getElementById('boss-hud');
-      const boss = enemies.find(e => e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol');
+      const boss = enemies.find(e => e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major');
       if (boss) {
           bossHud.classList.remove('hidden');
-          const bossNames = { boss: 'BOSS: BARNEJ', final_boss: 'BOSS: SRRADEK', janol: 'BOSS: JAN Ł' };
+          const bossNames = { mexicano: 'BOSS: MEXICANO', boss: 'BOSS: BARNEJ', janol: 'BOSS: JAN Ł', major: 'BOSS: MAJOR', final_boss: 'BOSS: SRRADEK' };
           const nameEl = document.getElementById('boss-name');
           nameEl.innerText = bossNames[boss.type] || 'BOSS';
           if (boss.enraged && !nameEl.classList.contains('enraged')) nameEl.classList.add('enraged');
@@ -1070,27 +1090,29 @@
       }
 
       waveTimer += dt;
-      if (waveTimer >= 25 && wave < 10) { 
+      if (waveTimer >= 25 && wave < 20) { 
           wave++; waveTimer = 0; 
-          if (wave === 10) spawnEnemy('final_boss');
-          else if (wave === 7) spawnEnemy('janol');
-          else if (wave % 5 === 0) spawnEnemy('boss'); 
+          if (wave === 20) spawnEnemy('final_boss');
+          else if (wave === 18) spawnEnemy('major');
+          else if (wave === 15) spawnEnemy('janol');
+          else if (wave === 10) spawnEnemy('boss');
+          else if (wave === 5) spawnEnemy('mexicano');
       }
       
-      let stopSpawn = (wave >= 10 && (enemies.some(e => e.type === 'final_boss') || finalBossDefeated));
-      if (!stopSpawn && wave < 10 && Math.random() < dt / Math.max(0.1, 2.5 - wave * 0.2)) spawnEnemy(); // naprawiony spawn losowych
+      let stopSpawn = (wave >= 20 && (enemies.some(e => e.type === 'final_boss') || finalBossDefeated));
+      if (!stopSpawn && wave < 20 && Math.random() < dt / Math.max(0.1, 2.5 - wave * 0.1)) spawnEnemy();
 
       // Aktualizacja wrogów
       for (let i = enemies.length - 1; i >= 0; i--) {
         const e = enemies[i];
         if(e.flashTimer > 0) {
             e.flashTimer -= dt;
-            if(e.flashTimer <= 0) e.mesh.children.forEach(c => { if(c.material && c.material.emissive && e.type !== 'boss' && e.type !== 'final_boss') c.material.emissive.setHex(0x000000); });
+            if(e.flashTimer <= 0) e.mesh.children.forEach(c => { if(c.material && c.material.emissive && e.type !== 'boss' && e.type !== 'final_boss' && e.type !== 'janol' && e.type !== 'mexicano' && e.type !== 'major') c.material.emissive.setHex(0x000000); });
         }
 
         if (e.hp <= 0) {
-          score += (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' ? 100 : 10);
-          xp += (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' ? 5 : 1);
+          score += (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major' ? 100 : 10);
+          xp += (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major' ? 5 : 1);
           // Eksplozja kawałków
           const bodyMat = e.mesh.children[0].material;
           for (let k = 0; k < 8; k++) {
@@ -1115,16 +1137,42 @@
 
 
         // --- FAZY HP (wściekłość po 50%) ---
-        if (!e.phaseTriggered && e.hp <= e.maxHp * 0.5 && (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol')) {
+        if (!e.phaseTriggered && e.hp <= e.maxHp * 0.5 && (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major')) {
             e.phaseTriggered = true;
             e.enraged = true;
             document.getElementById('boss-name').classList.add('enraged');
             spawnParticles(e.x, e.z, mats.blood);
             document.getElementById('ui-overlay').classList.add('shaking');
             setTimeout(() => document.getElementById('ui-overlay').classList.remove('shaking'), 700);
-            if (e.type === 'boss') { e.speed = e.baseSpeed * 1.35; e.cooldown = 0; } // Barnej: szybszy w szału (65 speed)
-            if (e.type === 'final_boss') { e.aoeCooldown = 1; } // Srradek: natychmiastowe AoE
-            if (e.type === 'janol') { e.bottleSlowCooldown = 2; } // Jan Ł: 2x częstsze butelki
+            if (e.type === 'mexicano') { e.speed = e.baseSpeed * 1.3; }
+            if (e.type === 'boss') { e.speed = e.baseSpeed * 1.35; e.cooldown = 0; }
+            if (e.type === 'janol') { e.bottleSlowCooldown = 2; }
+            if (e.type === 'major') { e.speed = e.baseSpeed * 1.25; }
+            if (e.type === 'final_boss') { e.aoeCooldown = 1; }
+        }
+
+        // --- MEXICANO: RZUT PUSZKĄ ZUBRA ---
+        if (e.type === 'mexicano') {
+            e.mexicanoCanTimer = (e.mexicanoCanTimer || 3) - dt;
+            if (e.mexicanoCanTimer <= 0) {
+                e.mexicanoCanTimer = e.enraged ? 1.5 : 3.2;
+                const canMesh = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xcc9900}));
+                canMesh.scale.set(1.2, 2.5, 1.2); scene.add(canMesh);
+                const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
+                projectiles.push({ mesh: canMesh, x: e.x, z: e.z, vx: dir.x * 65, vz: dir.y * 65, dmg: e.enraged ? 25 : 15, target: 'player', life: 3.5 });
+            }
+        }
+
+        // --- MAJOR: RZUT BOMBASKIM NITRO ---
+        if (e.type === 'major') {
+            e.majorNitroTimer = (e.majorNitroTimer || 4) - dt;
+            if (e.majorNitroTimer <= 0) {
+                e.majorNitroTimer = e.enraged ? 2.0 : 4.0;
+                const nMesh = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0xff4400}));
+                nMesh.scale.set(2, 4, 2); scene.add(nMesh);
+                const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
+                projectiles.push({ mesh: nMesh, x: e.x, z: e.z, vx: dir.x * 75, vz: dir.y * 75, dmg: e.enraged ? 45 : 30, target: 'player', life: 3.0 });
+            }
         }
 
         // --- BARNEJ: SZARŻA Z SYGNALIZACJĄ (TELEGRAPH) ---
@@ -1410,7 +1458,7 @@
 
       // Strzałka bossa gdy poza kadrem
       const bossArrow = document.getElementById('boss-arrow');
-      const activeBoss = enemies.find(e => e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol');
+      const activeBoss = enemies.find(e => e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major');
       if (activeBoss && gameState === 'playing') {
           // Prosta projekcja 2D
           const bPos = new THREE.Vector3(activeBoss.x, 12, activeBoss.z);
