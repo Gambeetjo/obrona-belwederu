@@ -812,6 +812,90 @@
         sprite.scale.set(24, 6, 1);
         return sprite;
     }
+    // --- MODELE PROJEKTILI I PRZEDMIOTÓW ---
+    function createZubrCanMesh(scale = 1) {
+        const group = new THREE.Group();
+        const canMat = new THREE.MeshStandardMaterial({ color: 0x145a27, metalness: 0.75, roughness: 0.2 }); // Zieleń Żubra
+        const silverMat = new THREE.MeshStandardMaterial({ color: 0xdcdcdc, metalness: 0.95, roughness: 0.1 });
+        const redMat = new THREE.MeshStandardMaterial({ color: 0xaa0000, roughness: 0.3 });
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xdfb435, metalness: 0.8, roughness: 0.2 });
+
+        const body = new THREE.Mesh(geos.cylinder, canMat); body.scale.set(1.2 * scale, 3.2 * scale, 1.2 * scale); body.position.y = 1.6 * scale; body.castShadow = true;
+        const rimTop = new THREE.Mesh(geos.cylinder, silverMat); rimTop.scale.set(1.18 * scale, 0.3 * scale, 1.18 * scale); rimTop.position.y = 3.2 * scale;
+        const rimBottom = new THREE.Mesh(geos.cylinder, silverMat); rimBottom.scale.set(1.18 * scale, 0.2 * scale, 1.18 * scale); rimBottom.position.y = 0.1 * scale;
+        const logoBand = new THREE.Mesh(geos.cylinder, redMat); logoBand.scale.set(1.22 * scale, 1.2 * scale, 1.22 * scale); logoBand.position.y = 1.6 * scale;
+        const goldStar = new THREE.Mesh(geos.box, goldMat); goldStar.scale.set(0.6 * scale, 0.6 * scale, 0.2 * scale); goldStar.position.set(0, 1.6 * scale, 1.15 * scale);
+        const tab = new THREE.Mesh(geos.box, silverMat); tab.scale.set(0.4 * scale, 0.1 * scale, 0.7 * scale); tab.position.set(0, 3.35 * scale, 0.2 * scale);
+
+        group.add(body, rimTop, rimBottom, logoBand, goldStar, tab);
+        return group;
+    }
+
+    function createBottleMesh(type = 'vodka', scale = 1) {
+        const group = new THREE.Group();
+        let glassMat, capMat;
+        if (type === 'milk') {
+            glassMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+            capMat = new THREE.MeshStandardMaterial({ color: 0xdd1111 });
+        } else if (type === 'beer') {
+            glassMat = new THREE.MeshStandardMaterial({ color: 0x442200, transparent: true, opacity: 0.9, roughness: 0.1 });
+            capMat = new THREE.MeshStandardMaterial({ color: 0xddaa00, metalness: 0.8 });
+        } else { // vodka / glass
+            glassMat = new THREE.MeshStandardMaterial({ color: 0x77ddff, transparent: true, opacity: 0.8, roughness: 0.1, metalness: 0.2 });
+            capMat = new THREE.MeshStandardMaterial({ color: 0xcc0000, metalness: 0.6 });
+        }
+        const labelMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.8 });
+
+        const body = new THREE.Mesh(geos.cylinder, glassMat); body.scale.set(1.2 * scale, 3.0 * scale, 1.2 * scale); body.position.y = 1.5 * scale; body.castShadow = true;
+        const neck = new THREE.Mesh(geos.cylinder, glassMat); neck.scale.set(0.5 * scale, 1.8 * scale, 0.5 * scale); neck.position.y = 3.6 * scale;
+        const cap = new THREE.Mesh(geos.cylinder, capMat); cap.scale.set(0.55 * scale, 0.4 * scale, 0.55 * scale); cap.position.y = 4.6 * scale;
+        const label = new THREE.Mesh(geos.cylinder, labelMat); label.scale.set(1.23 * scale, 1.4 * scale, 1.23 * scale); label.position.y = 1.6 * scale;
+
+        group.add(body, neck, cap, label);
+        return group;
+    }
+
+    function createNitroMesh(scale = 1) {
+        const group = new THREE.Group();
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.3 });
+        const capMat = new THREE.MeshStandardMaterial({ color: 0xee1111, roughness: 0.2 });
+        const hazardMat = new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.4 });
+        const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+
+        const body = new THREE.Mesh(geos.cylinder, bodyMat); body.scale.set(1.4 * scale, 3.8 * scale, 1.4 * scale); body.position.y = 1.9 * scale; body.castShadow = true;
+        const neck = new THREE.Mesh(geos.cylinder, bodyMat); neck.scale.set(0.6 * scale, 0.8 * scale, 0.6 * scale); neck.position.y = 4.1 * scale;
+        const cap = new THREE.Mesh(geos.cylinder, capMat); cap.scale.set(0.7 * scale, 0.6 * scale, 0.7 * scale); cap.position.y = 4.6 * scale;
+        
+        const hazardLabel = new THREE.Mesh(geos.box, hazardMat); hazardLabel.scale.set(1.5 * scale, 1.5 * scale, 0.1 * scale); hazardLabel.position.set(0, 2.0 * scale, 1.38 * scale); hazardLabel.rotation.z = Math.PI / 4;
+        const skullDot = new THREE.Mesh(geos.box, blackMat); skullDot.scale.set(0.4 * scale, 0.4 * scale, 0.2 * scale); skullDot.position.set(0, 2.0 * scale, 1.4 * scale);
+        const handle = new THREE.Mesh(geos.box, capMat); handle.scale.set(0.3 * scale, 1.2 * scale, 0.8 * scale); handle.position.set(1.2 * scale, 3.8 * scale, 0);
+
+        group.add(body, neck, cap, hazardLabel, skullDot, handle);
+        return group;
+    }
+
+    function createCameraMesh(scale = 1) {
+        const group = new THREE.Group();
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.7, roughness: 0.3 });
+        const lensMat = new THREE.MeshStandardMaterial({ color: 0x050505, metalness: 0.9, roughness: 0.1 });
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.8 });
+        const redLedMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 2.0 });
+        const tripodMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8 });
+
+        const body = new THREE.Mesh(geos.box, bodyMat); body.scale.set(2.4 * scale, 2.0 * scale, 4.0 * scale); body.position.y = 8.0 * scale; body.castShadow = true;
+        const lensRing = new THREE.Mesh(geos.cylinder, lensMat); lensRing.scale.set(1.1 * scale, 1.6 * scale, 1.1 * scale); lensRing.rotation.x = Math.PI / 2; lensRing.position.set(0, 8.0 * scale, 2.5 * scale);
+        const glassLens = new THREE.Mesh(geos.cylinder, glassMat); glassLens.scale.set(0.9 * scale, 0.2 * scale, 0.9 * scale); glassLens.rotation.x = Math.PI / 2; glassLens.position.set(0, 8.0 * scale, 3.3 * scale);
+        const recLed = new THREE.Mesh(geos.box, redLedMat); recLed.scale.set(0.4 * scale, 0.4 * scale, 0.4 * scale); recLed.position.set(0.8 * scale, 9.2 * scale, 1.8 * scale);
+        const mic = new THREE.Mesh(geos.cylinder, lensMat); mic.scale.set(0.4 * scale, 2.2 * scale, 0.4 * scale); mic.rotation.x = Math.PI / 2; mic.position.set(-0.8 * scale, 9.3 * scale, 1.0 * scale);
+
+        const leg1 = new THREE.Mesh(geos.cylinder, tripodMat); leg1.scale.set(0.3 * scale, 8.0 * scale, 0.3 * scale); leg1.position.set(0, 4.0 * scale, 2.0 * scale); leg1.rotation.x = -0.3;
+        const leg2 = new THREE.Mesh(geos.cylinder, tripodMat); leg2.scale.set(0.3 * scale, 8.0 * scale, 0.3 * scale); leg2.position.set(-1.8 * scale, 4.0 * scale, -1.5 * scale); leg2.rotation.z = 0.3; leg2.rotation.x = 0.2;
+        const leg3 = new THREE.Mesh(geos.cylinder, tripodMat); leg3.scale.set(0.3 * scale, 8.0 * scale, 0.3 * scale); leg3.position.set(1.8 * scale, 4.0 * scale, -1.5 * scale); leg3.rotation.z = -0.3; leg3.rotation.x = 0.2;
+
+        group.add(body, lensRing, glassLens, recLed, mic, leg1, leg2, leg3);
+        return group;
+    }
+
     function createEnemyMesh(type) {
       const group = new THREE.Group();
       let bodyMat, headMat = mats.skinTone;
@@ -841,26 +925,47 @@
           const mustache = new THREE.Mesh(geos.box, mats.grayHairMat); mustache.scale.set(w*0.6, h*0.15, d*0.9); mustache.position.set(0, yOff + h/2 + h*0.15, d*0.45);
           const hair = new THREE.Mesh(geos.box, type === 'final_boss' ? new THREE.MeshStandardMaterial({color: 0x222222}) : mats.grayHairMat); hair.scale.set(w*0.85, h*0.15, d*0.85); hair.position.set(0, yOff + h + h*0.1, 0);
           const cigar = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x5c4033})); cigar.scale.set(0.8, w*0.8, 0.8); cigar.rotation.z = Math.PI/4; cigar.position.set(w/2 + w*0.3, yOff + h*0.1, d*0.5);
-          group.add(shirt, bowtie, mustache, hair, cigar);
+          const cigarTip = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0xff3300})); cigarTip.scale.set(0.9, 0.9, 0.9); cigarTip.position.set(w/2 + w*0.6, yOff + h*0.3, d*0.5);
+          group.add(shirt, bowtie, mustache, hair, cigar, cigarTip);
+
+          if (type === 'final_boss') {
+              const glasses = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x050505, metalness: 0.95}));
+              glasses.scale.set(w * 0.7, h * 0.12, d * 0.4); glasses.position.set(0, yOff + h/2 + h*0.18, d * 0.45);
+              const camOnShoulder = createCameraMesh(0.6);
+              camOnShoulder.position.set(w/2 + w*0.2, yOff + h*0.3, d*0.2);
+              group.add(glasses, camOnShoulder);
+          }
       } else if (type === 'mexicano') {
-          // Meksykańskie Sombrero z szerokim rondem i ozdobnym czerwonym paskiem
           const sombreroBrim = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xddaa22, roughness: 0.4}));
-          sombreroBrim.scale.set(w * 1.15, h * 0.06, d * 1.15); sombreroBrim.position.set(0, yOff + h/2 + h*0.22, 0);
+          sombreroBrim.scale.set(w * 1.2, h * 0.06, d * 1.2); sombreroBrim.position.set(0, yOff + h/2 + h*0.22, 0);
           const sombreroBand = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xcc0000}));
-          sombreroBand.scale.set(w * 0.65, h * 0.05, d * 0.65); sombreroBand.position.set(0, yOff + h/2 + h*0.27, 0);
+          sombreroBand.scale.set(w * 0.7, h * 0.05, d * 0.7); sombreroBand.position.set(0, yOff + h/2 + h*0.27, 0);
           const sombreroCrown = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xddaa22, roughness: 0.4}));
-          sombreroCrown.scale.set(w * 0.6, h * 0.35, d * 0.6); sombreroCrown.position.set(0, yOff + h/2 + h*0.45, 0);
-          const can = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xcc9900}));
-          can.scale.set(1.2, 5.0, 1.2); can.position.set(w/2 + w*0.2, yOff, d*0.3);
-          group.add(sombreroBrim, sombreroBand, sombreroCrown, can);
+          sombreroCrown.scale.set(w * 0.65, h * 0.35, d * 0.65); sombreroCrown.position.set(0, yOff + h/2 + h*0.45, 0);
+          const glasses = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x111111, metalness: 0.9}));
+          glasses.scale.set(w * 0.7, h * 0.12, d * 0.4); glasses.position.set(0, yOff + h/2 + h*0.18, d * 0.42);
+          const canInHand = createZubrCanMesh(0.85);
+          canInHand.position.set(w/2 + w*0.25, yOff, d*0.3);
+          group.add(sombreroBrim, sombreroBand, sombreroCrown, glasses, canInHand);
+      } else if (type === 'janol') {
+          const beanie = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x223355}));
+          beanie.scale.set(w * 0.7, h * 0.25, d * 0.7); beanie.position.set(0, yOff + h/2 + h*0.35, 0);
+          const beard = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x443322}));
+          beard.scale.set(w * 0.65, h * 0.18, d * 0.5); beard.position.set(0, yOff + h/2 + h*0.05, d * 0.42);
+          const bottleInHand = createBottleMesh('vodka', 0.85);
+          bottleInHand.position.set(w/2 + w*0.25, yOff, d*0.3);
+          group.add(beanie, beard, bottleInHand);
       } else if (type === 'major') {
           const helmet = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x2e3d20}));
           helmet.scale.set(w*0.9, h*0.25, d*0.9); helmet.position.set(0, yOff + h/2 + h*0.3, 0);
-          const bowl = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xdddddd}));
-          bowl.scale.set(2.5, 2.0, 2.5); bowl.position.set(w/2 + w*0.25, yOff - h*0.1, d*0.3);
-          group.add(helmet, bowl);
+          const bowl = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xdddddd, metalness: 0.5}));
+          bowl.scale.set(2.8, 1.8, 2.8); bowl.position.set(-w/2 - w*0.2, yOff - h*0.1, d*0.3);
+          const foodInBowl = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x883311}));
+          foodInBowl.scale.set(2.5, 0.8, 2.5); foodInBowl.position.set(-w/2 - w*0.2, yOff - h*0.05, d*0.3);
+          const nitroInHand = createNitroMesh(0.75);
+          nitroInHand.position.set(w/2 + w*0.25, yOff - h*0.1, d*0.3);
+          group.add(helmet, bowl, foodInBowl, nitroInHand);
       } else if (type === 'latex') {
-          // Obcisły, połyskujący czarny strój lateksowy + czarne włosy (męska twarz)
           const hair = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x050505}));
           hair.scale.set(w * 0.85, h * 0.15, d * 0.85); hair.position.set(0, yOff + h/2 + h*0.3, 0);
           const belt = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x333333, metalness: 0.9}));
@@ -1056,12 +1161,10 @@
 
     function spawnFlyingMilk(count = 1) {
         for (let c = 0; c < count; c++) {
-            const group = new THREE.Group();
-            const body = new THREE.Mesh(geos.box, mats.milkMat); body.scale.set(3, 6, 3); body.position.y = 3; body.castShadow = true;
-            const cap = new THREE.Mesh(geos.box, mats.redCap); cap.scale.set(1.5, 1, 1.5); cap.position.y = 6.5; cap.castShadow = true;
+            const group = createBottleMesh('milk', 0.95);
             const glow = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.35}));
             glow.scale.set(3.6, 6.6, 3.6); glow.position.y = 3;
-            group.add(body, cap, glow); scene.add(group);
+            group.add(glow); scene.add(group);
             flyingMilks.push({ mesh: group, angle: 0, radius: 22, dmg: 35 });
         }
         const N = flyingMilks.length;
@@ -1074,13 +1177,9 @@
 
     function spawnFlyingNitro(count = 1) {
         for (let c = 0; c < count; c++) {
-            const group = new THREE.Group();
-            const nitroMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, roughness: 0.2, emissive: 0x005544, emissiveIntensity: 0.6 });
-            const capMat = new THREE.MeshStandardMaterial({ color: 0xff0044, emissive: 0x880022 });
-            const body = new THREE.Mesh(geos.box, nitroMat); body.scale.set(3.5, 8, 3.5); body.position.y = 4; body.castShadow = true;
-            const cap = new THREE.Mesh(geos.box, capMat); cap.scale.set(1.8, 1.5, 1.8); cap.position.y = 8.5; cap.castShadow = true;
+            const group = createNitroMesh(0.9);
             const pLight = new THREE.PointLight(0x00ffcc, 2, 40); pLight.position.y = 4;
-            group.add(body, cap, pLight); scene.add(group);
+            group.add(pLight); scene.add(group);
             flyingNitros.push({ mesh: group, angle: 0, radius: 55, dmg: 70 });
         }
         const N = flyingNitros.length;
@@ -1474,7 +1573,8 @@
           let aoe = aoeAttacks[i];
           aoe.timer -= dt;
           if (aoe.timer <= 0) {
-              for (let j = 0; j < 12; j++) spawnParticles(aoe.x, aoe.z, mats.coalMat); // Kamera impact particles
+              for (let j = 0; j < 16; j++) spawnParticles(aoe.x, aoe.z, new THREE.MeshBasicMaterial({color: 0xff0000}));
+              playSound('explosion');
               if (Math.hypot(player.x - aoe.x, player.z - aoe.z) <= aoe.radius + player.radius) {
                   player.hp -= aoe.dmg;
                   flashDamageVignette();
@@ -1487,7 +1587,12 @@
               scene.remove(aoe.marker);
               aoeAttacks.splice(i, 1);
           } else {
-              aoe.marker.material.opacity = (aoe.timer % 0.2 < 0.1) ? 0.8 : 0.3;
+              if (aoe.marker && aoe.marker.children && aoe.marker.children[0] && aoe.marker.children[0].material) {
+                  aoe.marker.children[0].material.opacity = (aoe.timer % 0.2 < 0.1) ? 0.8 : 0.3;
+              }
+              if (aoe.marker && aoe.marker.children && aoe.marker.children[2] && aoe.marker.children[2].material) {
+                  aoe.marker.children[2].material.opacity = (aoe.timer % 0.15 < 0.075) ? 0.45 : 0.15;
+              }
           }
       }
 
@@ -1596,10 +1701,10 @@
             e.mexicanoCanTimer = (e.mexicanoCanTimer || 3) - dt;
             if (e.mexicanoCanTimer <= 0) {
                 e.mexicanoCanTimer = e.enraged ? 1.4 : 3.0;
-                const canMesh = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xcc9900}));
-                canMesh.scale.set(1.2, 2.5, 1.2); scene.add(canMesh);
+                const canMesh = createZubrCanMesh(1.3);
+                scene.add(canMesh);
                 const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
-                projectiles.push({ mesh: canMesh, x: e.x, z: e.z, vx: dir.x * 70, vz: dir.y * 70, dmg: e.enraged ? 45 : 30, target: 'player', life: 3.5 });
+                projectiles.push({ mesh: canMesh, x: e.x, z: e.z, vx: dir.x * 70, vz: dir.y * 70, dmg: e.enraged ? 45 : 30, target: 'player', life: 3.5, isZubr: true });
             }
         }
 
@@ -1608,10 +1713,10 @@
             e.majorNitroTimer = (e.majorNitroTimer || 4) - dt;
             if (e.majorNitroTimer <= 0) {
                 e.majorNitroTimer = e.enraged ? 1.8 : 3.5;
-                const nMesh = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0xff4400}));
-                nMesh.scale.set(2, 4, 2); scene.add(nMesh);
+                const nMesh = createNitroMesh(1.3);
+                scene.add(nMesh);
                 const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
-                projectiles.push({ mesh: nMesh, x: e.x, z: e.z, vx: dir.x * 80, vz: dir.y * 80, dmg: e.enraged ? 85 : 65, target: 'player', life: 3.0 });
+                projectiles.push({ mesh: nMesh, x: e.x, z: e.z, vx: dir.x * 80, vz: dir.y * 80, dmg: e.enraged ? 85 : 65, target: 'player', life: 3.0, isNitro: true });
             }
         }
 
@@ -1637,7 +1742,6 @@
                 e.z += e.chargeVz * dt;
                 e.mesh.position.set(e.x, 4 + Math.sin(e.chargeTimer * 20) * 3, e.z);
                 
-                // Uderzenie w gracza podczas szarży (jednorazowe 60 HP)
                 if (Math.hypot(e.x - player.x, e.z - player.z) < e.radius + player.radius + 5) {
                     player.hp = Math.max(0, player.hp - 60);
                     flashDamageVignette();
@@ -1669,10 +1773,18 @@
             e.aoeCooldown -= dt;
             if (e.aoeCooldown <= 0) {
                 e.aoeCooldown = e.enraged ? 2.5 : 5.0;
-                const marker = new THREE.Mesh(new THREE.CylinderGeometry(16, 16, 1, 16), new THREE.MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.6}));
-                marker.position.set(player.x, 0.5, player.z);
-                scene.add(marker);
-                aoeAttacks.push({ x: player.x, z: player.z, timer: 2.0, marker: marker, radius: 16, dmg: e.enraged ? 120 : 95 });
+                const cameraMarkerGroup = new THREE.Group();
+                const ringMarker = new THREE.Mesh(new THREE.CylinderGeometry(16, 16, 0.4, 32), new THREE.MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.4}));
+                ringMarker.position.y = 0.2;
+                const cam3d = createCameraMesh(1.1);
+                cam3d.position.set(0, 0, 0);
+                const laserCone = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 16, 20, 16, 1, true), new THREE.MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.2, side: THREE.DoubleSide}));
+                laserCone.position.set(0, 10, 0);
+                cameraMarkerGroup.add(ringMarker, cam3d, laserCone);
+                cameraMarkerGroup.position.set(player.x, 0, player.z);
+                scene.add(cameraMarkerGroup);
+
+                aoeAttacks.push({ x: player.x, z: player.z, timer: 2.0, marker: cameraMarkerGroup, radius: 16, dmg: e.enraged ? 120 : 95 });
                 if (e.enraged && Math.random() < 0.7) { spawnEnemy('latex'); }
             }
         }
@@ -1682,12 +1794,10 @@
             e.bottleSlowCooldown -= dt;
             if (e.bottleSlowCooldown <= 0) {
                 e.bottleSlowCooldown = e.enraged ? 2 : 4;
-                const bMesh = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x88ccff, transparent: true, opacity: 0.85}));
-                bMesh.scale.set(1.5, 4, 1.5); scene.add(bMesh);
-                projectiles.push({ mesh: bMesh, x: e.x, z: e.z, vx: 0, vz: 0, vy: 0, dmg: 25, target: 'house', life: 4.0, isBottle: true, slowTrail: true });
+                const bMesh = createBottleMesh('vodka', 1.3);
+                scene.add(bMesh);
                 const dir = new THREE.Vector2(-e.x, -e.z).normalize();
-                projectiles[projectiles.length-1].vx = dir.x * 55;
-                projectiles[projectiles.length-1].vz = dir.y * 55;
+                projectiles.push({ mesh: bMesh, x: e.x, z: e.z, vx: dir.x * 55, vz: dir.y * 55, vy: 0, dmg: 25, target: 'house', life: 4.0, isBottle: true, slowTrail: true });
             }
         }
 
@@ -1782,7 +1892,13 @@
               p.mesh.position.set(p.x, 5, p.z);
           }
           
-          p.mesh.rotation.x += dt * 5; p.mesh.rotation.z += dt * 3;
+          if (p.isZubr || p.isNitro || p.isBottle) {
+              p.mesh.rotation.x += dt * 10; p.mesh.rotation.z += dt * 5;
+              if (p.isNitro && Math.random() < 0.3) spawnParticles(p.x, p.z, new THREE.MeshBasicMaterial({color: 0xffaa00}));
+              if (p.isBottle && Math.random() < 0.3) spawnParticles(p.x, p.z, new THREE.MeshBasicMaterial({color: 0x77ddff}));
+          } else {
+              p.mesh.rotation.x += dt * 5; p.mesh.rotation.z += dt * 3;
+          }
 
           let hit = false;
           if (p.isPlayer || p.isGift) {
