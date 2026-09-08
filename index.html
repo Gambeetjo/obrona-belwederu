@@ -172,6 +172,32 @@
       0% { opacity: 0.3; transform: translateX(-50%) scale(0.95); }
       100% { opacity: 1.0; transform: translateX(-50%) scale(1.05); }
     }
+    #highscore-table {
+      margin-top: 15px; width: 100%; max-width: 380px;
+      border-collapse: collapse; font-family: 'Press Start 2P', monospace;
+      font-size: 11px;
+    }
+    #highscore-table th {
+      color: var(--gold); padding: 6px 8px; border-bottom: 2px solid var(--gold);
+      text-align: left; font-size: 10px;
+    }
+    #highscore-table td {
+      color: var(--cream); padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    #highscore-table tr.current-run td {
+      color: #ffdd00; text-shadow: 0 0 8px #ff8800;
+    }
+    #wave-event-banner {
+      position: absolute; top: 28%; left: 50%; transform: translateX(-50%);
+      font-size: 18px; font-family: 'Press Start 2P', monospace;
+      color: #ffdd00; text-shadow: 0 0 15px #ff8800, 3px 3px 0 #000;
+      pointer-events: none; z-index: 35; white-space: nowrap;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    @media (max-width: 768px) {
+      #wave-event-banner { font-size: 12px; top: 22%; }
+      #highscore-table { font-size: 9px; }
+    }
     #mobile-attack-btn {
       position: fixed; bottom: 30px; right: 30px;
       width: 90px; height: 90px; border-radius: 50%;
@@ -215,6 +241,7 @@
         <div id="boss-intro-sub"></div>
       </div>
       <div id="combo-display" class="hidden"></div>
+      <div id="wave-event-banner"></div>
       <div id="boss-arrow" class="hidden"></div>
       <div id="house-warning" class="hidden">⚠️ BELWEDER ZAGROŻONY! ⚠️</div>
     </header>
@@ -259,6 +286,7 @@
       <h1 style="color: #c4383b;">KONIEC GRY</h1>
       <h2 id="gameover-reason" style="color: var(--cream); font-size: 20px; text-shadow: 2px 2px #000; margin-bottom: 20px;"></h2>
       <p id="final-stats"></p>
+      <div id="highscore-container" style="margin-top:10px;"></div>
       <button class="btn" id="restart-btn">Zagraj Ponownie</button>
     </div>
     <div id="levelup-screen" class="screen hidden">
@@ -705,15 +733,15 @@
       { id: 'range', name: 'Długi Trzonek', desc: 'Większy zasięg ataku.', level: 0, max: 4, minLevel: 1, apply: () => { player.attackRange *= 1.2; updateRangeIndicator(); } },
       { id: 'rate', name: 'Krzepa', desc: 'Atakujesz szybciej.', level: 0, max: 4, minLevel: 1, apply: () => player.attackCooldown = Math.max(0.1, player.attackCooldown - 0.15) },
       { id: 'health', name: 'Gruby Sweter', desc: 'Max HP +30 i leczenie.', level: 0, max: 4, minLevel: 1, apply: () => { player.maxHp += 30; player.hp = player.maxHp; } },
-      { id: 'houseHp', name: 'Cegły', desc: 'Max HP Domku +50 i leczenie.', level: 0, max: 4, minLevel: 1, apply: () => { house.maxHp += 50; house.hp = house.maxHp; } },
-      { id: 'regen', name: 'Złota Rączka', desc: 'Lepsza auto-naprawa domku.', level: 0, max: 4, minLevel: 1, apply: () => house.regenRate += 3 },
+      { id: 'houseHp', name: 'Cegły', desc: 'Max HP Domku +100 i leczenie.', level: 0, max: 4, minLevel: 1, apply: () => { house.maxHp += 100; house.hp = house.maxHp; } },
+      { id: 'regen', name: 'Złota Rączka', desc: 'Lepsza auto-naprawa domku (+5 HP/s).', level: 0, max: 4, minLevel: 1, apply: () => house.regenRate += 5 },
       { id: 'cleave', name: 'Młynek', desc: 'Kulacha rani szerzej.', level: 0, max: 4, minLevel: 1, apply: () => player.attackAngle += Math.PI/6 },
       { id: 'crit', name: 'Warmińska Siła', desc: 'Szansa na podwójne dmg.', level: 0, max: 3, minLevel: 3, apply: () => { player.critChance = (player.critChance || 0) + 0.15; } },
       { id: 'knockback', name: 'Odrzut', desc: 'Odepchnięcie wrogów +10.', level: 0, max: 3, minLevel: 3, apply: () => player.knockback += 10 },
       { id: 'lifesteal', name: 'Pisanie zawiadomień na trójeczke', desc: 'Leczy 2 HP przy ataku.', level: 0, max: 2, minLevel: 5, apply: () => { player.lifesteal = (player.lifesteal || 0) + 2; } },
-      { id: 'houseArmor', name: 'Mur wyrzszy od mego', desc: 'Domek dostaje -15% dmg.', level: 0, max: 3, minLevel: 4, apply: () => { house.armor = (house.armor || 0) + 0.15; } },
-      { id: 'flyingMilk', name: 'Latające Mleczko Boże', desc: 'Mleczko krąży i rani wrogów.', level: 0, max: 4, minLevel: 2, apply: () => { spawnFlyingMilk(); } },
-      { id: 'flyingNitro', name: 'Butelka Nitro Boża', desc: 'Nitro krąży 15% dalej od mleka i mocno rani wrogów.', level: 0, max: 4, minLevel: 10, apply: () => { spawnFlyingNitro(); } },
+      { id: 'houseArmor', name: 'Mur wyrzszy od mego', desc: 'Domek dostaje -20% dmg.', level: 0, max: 3, minLevel: 4, apply: () => { house.armor = (house.armor || 0) + 0.20; } },
+      { id: 'flyingMilk', name: 'Latające Mleczko Boże', desc: 'Mleczka krążą dookoła i mocno ranią wrogów (od razu 2 sztuki na 1. poziomie!).', level: 0, max: 4, minLevel: 2, apply: () => { spawnFlyingMilk(2); } },
+      { id: 'flyingNitro', name: 'Butelka Nitro Boża', desc: 'Nitro krąży daleko na obwodzie (od razu 2 sztuki na 1. poziomie!) i wywołuje eksplozje.', level: 0, max: 4, minLevel: 10, apply: () => { spawnFlyingNitro(2); } },
       { id: 'coal', name: 'Rzut Węglem', desc: 'Automatycznie rzuca węglem we wrogów.', level: 0, max: 4, minLevel: 1, apply: () => { player.coalLevel = (player.coalLevel || 0) + 1; } },
       { id: 'selfRegen', name: 'Zupka Chińska', desc: 'Regeneracja HP co kilka sekund.', level: 0, max: 3, minLevel: 5, apply: () => { player.selfRegenLevel = (player.selfRegenLevel || 0) + 1; } },
       { id: 'rainOfGifts', name: 'Deszcz Darów Bożych', desc: 'Zrzut paczek na skupisko wrogów.', level: 0, max: 3, minLevel: 10, apply: () => { player.rainLevel = (player.rainLevel || 0) + 1; } },
@@ -889,23 +917,26 @@
       mesh.position.set(x, 0, z); scene.add(mesh);
       
       let hp = Math.floor(20 + wave * 5 + (wave > 8 ? Math.pow(wave - 8, 2) * 3 : 0)); let speed = 25; let dmg = 10; let range = 8;
-      if (type === 'mexicano') { hp = 400; speed = 35; dmg = 15; range = 12; }
-      else if (type === 'boss') { hp = 800; speed = 48; dmg = 30; range = 12; }
-      else if (type === 'janol') { hp = 1200; speed = 30; dmg = 20; range = 12; }
-      else if (type === 'major') { hp = 1600; speed = 40; dmg = 35; range = 12; }
-      else if (type === 'final_boss') { hp = 2500; speed = 35; dmg = 40; range = 20; }
+      if (type === 'mexicano') { hp = 1200; speed = 40; dmg = 30; range = 12; }
+      else if (type === 'boss') { hp = 2800; speed = 55; dmg = 50; range = 12; }
+      else if (type === 'janol') { hp = 4500; speed = 38; dmg = 42; range = 12; }
+      else if (type === 'major') { hp = 7500; speed = 50; dmg = 65; range = 12; }
+      else if (type === 'final_boss') { hp = 12000; speed = 42; dmg = 85; range = 20; }
       else if (type === 'tank') { hp *= 4; speed = 10; dmg = 25; }
       else if (type === 'thrower') { hp *= 1.3; speed = 18; range = 75; dmg = 10; }
       else if (type === 'runner') { hp = 10; speed = 40; dmg = 5; }
-      else if (type === 'latex') { hp *= 2; speed = 32; dmg = 20; range = 8; }
+      else if (type === 'latex') { hp *= 2.5; speed = 34; dmg = 22; range = 8; }
       
       if (type !== 'boss' && type !== 'final_boss' && type !== 'janol' && type !== 'mexicano' && type !== 'major') {
           speed *= (1 + wave * 0.025);
+      } else if (wave > 5) {
+          hp = Math.floor(hp * (1 + (wave - 5) * 0.15));
       }
       
       let target = 'player';
       if (type === 'thrower' || type === 'runner') target = 'house';
       else if (type === 'tank') target = 'player';
+      else if (type === 'latex') target = (Math.random() < 0.6 || Math.hypot(player.x - x, player.z - z) < 200) ? 'player' : 'house';
       
       let isBoss = (type === 'boss' || type === 'final_boss' || type === 'janol' || type === 'mexicano' || type === 'major');
       let radius = (type === 'boss' || type === 'major' || type === 'janol' || type === 'mexicano') ? 24 : (type === 'final_boss' ? 48 : (type === 'tank' ? 10 : 6));
@@ -1023,24 +1054,41 @@
         spawnPickupAt(Math.cos(angle) * dist, Math.sin(angle) * dist);
     }
 
-    function spawnFlyingMilk() {
-        const group = new THREE.Group();
-        const body = new THREE.Mesh(geos.box, mats.milkMat); body.scale.set(3, 6, 3); body.position.y = 3; body.castShadow = true;
-        const cap = new THREE.Mesh(geos.box, mats.redCap); cap.scale.set(1.5, 1, 1.5); cap.position.y = 6.5; cap.castShadow = true;
-        group.add(body, cap); scene.add(group);
-        flyingMilks.push({ mesh: group, angle: 0, radius: 18, dmg: 15 });
-        for(let i=0; i<flyingMilks.length; i++) flyingMilks[i].angle = i * (Math.PI * 2 / flyingMilks.length);
+    function spawnFlyingMilk(count = 1) {
+        for (let c = 0; c < count; c++) {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(geos.box, mats.milkMat); body.scale.set(3, 6, 3); body.position.y = 3; body.castShadow = true;
+            const cap = new THREE.Mesh(geos.box, mats.redCap); cap.scale.set(1.5, 1, 1.5); cap.position.y = 6.5; cap.castShadow = true;
+            const glow = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.35}));
+            glow.scale.set(3.6, 6.6, 3.6); glow.position.y = 3;
+            group.add(body, cap, glow); scene.add(group);
+            flyingMilks.push({ mesh: group, angle: 0, radius: 22, dmg: 35 });
+        }
+        const N = flyingMilks.length;
+        for (let i = 0; i < N; i++) {
+            flyingMilks[i].angle = i * (Math.PI * 2 / N);
+            flyingMilks[i].radius = 22 + (i % 2) * 12;
+            flyingMilks[i].speedMult = 1.0 + (i % 2) * 0.25;
+        }
     }
 
-    function spawnFlyingNitro() {
-        const group = new THREE.Group();
-        const nitroMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, roughness: 0.3 });
-        const capMat = new THREE.MeshStandardMaterial({ color: 0xff0044 });
-        const body = new THREE.Mesh(geos.box, nitroMat); body.scale.set(3, 7, 3); body.position.y = 3.5; body.castShadow = true;
-        const cap = new THREE.Mesh(geos.box, capMat); cap.scale.set(1.5, 1.2, 1.5); cap.position.y = 7.5; cap.castShadow = true;
-        group.add(body, cap); scene.add(group);
-        flyingNitros.push({ mesh: group, angle: 0, radius: 20.7, dmg: 35 });
-        for(let i=0; i<flyingNitros.length; i++) flyingNitros[i].angle = i * (Math.PI * 2 / flyingNitros.length);
+    function spawnFlyingNitro(count = 1) {
+        for (let c = 0; c < count; c++) {
+            const group = new THREE.Group();
+            const nitroMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, roughness: 0.2, emissive: 0x005544, emissiveIntensity: 0.6 });
+            const capMat = new THREE.MeshStandardMaterial({ color: 0xff0044, emissive: 0x880022 });
+            const body = new THREE.Mesh(geos.box, nitroMat); body.scale.set(3.5, 8, 3.5); body.position.y = 4; body.castShadow = true;
+            const cap = new THREE.Mesh(geos.box, capMat); cap.scale.set(1.8, 1.5, 1.8); cap.position.y = 8.5; cap.castShadow = true;
+            const pLight = new THREE.PointLight(0x00ffcc, 2, 40); pLight.position.y = 4;
+            group.add(body, cap, pLight); scene.add(group);
+            flyingNitros.push({ mesh: group, angle: 0, radius: 55, dmg: 70 });
+        }
+        const N = flyingNitros.length;
+        for (let i = 0; i < N; i++) {
+            flyingNitros[i].angle = i * (Math.PI * 2 / N);
+            flyingNitros[i].radius = 55 + (i % 2) * 18;
+            flyingNitros[i].speedMult = 1.0 + (i % 2) * 0.3;
+        }
     }
 
     function spawnRainOfGifts() {
@@ -1338,6 +1386,28 @@
           }
       }
       
+      // Kolizja fizyczna z wrogami + obrażenia od dotyku
+      player.contactTimer = (player.contactTimer || 0) - dt;
+      for (const e of enemies) {
+          const dist = Math.hypot(newX - e.x, newZ - e.z);
+          const minDist = player.radius + e.radius;
+          if (dist < minDist && dist > 0.001) {
+              const overlap = minDist - dist;
+              newX += ((newX - e.x) / dist) * overlap;
+              newZ += ((newZ - e.z) / dist) * overlap;
+              
+              if (player.contactTimer <= 0) {
+                  let touchDmg = Math.max(10, Math.floor(e.dmg * 0.6));
+                  if (player.shieldLevel) touchDmg *= (1 - player.shieldLevel);
+                  player.hp = Math.max(0, player.hp - touchDmg);
+                  playSound('playerHit');
+                  flashDamageVignette();
+                  spawnParticles(player.x, player.z, mats.blood);
+                  player.contactTimer = 0.3;
+              }
+          }
+      }
+      
       player.x = Math.max(-250, Math.min(250, newX)); player.z = Math.max(-250, Math.min(250, newZ));
       player.mesh.position.set(player.x, 0, player.z);
       if (player.rangeMesh) { player.rangeMesh.position.x = player.x; player.rangeMesh.position.z = player.z; }
@@ -1525,11 +1595,11 @@
         if (e.type === 'mexicano') {
             e.mexicanoCanTimer = (e.mexicanoCanTimer || 3) - dt;
             if (e.mexicanoCanTimer <= 0) {
-                e.mexicanoCanTimer = e.enraged ? 1.5 : 3.2;
+                e.mexicanoCanTimer = e.enraged ? 1.4 : 3.0;
                 const canMesh = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xcc9900}));
                 canMesh.scale.set(1.2, 2.5, 1.2); scene.add(canMesh);
                 const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
-                projectiles.push({ mesh: canMesh, x: e.x, z: e.z, vx: dir.x * 65, vz: dir.y * 65, dmg: e.enraged ? 25 : 15, target: 'player', life: 3.5 });
+                projectiles.push({ mesh: canMesh, x: e.x, z: e.z, vx: dir.x * 70, vz: dir.y * 70, dmg: e.enraged ? 45 : 30, target: 'player', life: 3.5 });
             }
         }
 
@@ -1537,11 +1607,11 @@
         if (e.type === 'major') {
             e.majorNitroTimer = (e.majorNitroTimer || 4) - dt;
             if (e.majorNitroTimer <= 0) {
-                e.majorNitroTimer = e.enraged ? 2.0 : 4.0;
+                e.majorNitroTimer = e.enraged ? 1.8 : 3.5;
                 const nMesh = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0xff4400}));
                 nMesh.scale.set(2, 4, 2); scene.add(nMesh);
                 const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
-                projectiles.push({ mesh: nMesh, x: e.x, z: e.z, vx: dir.x * 75, vz: dir.y * 75, dmg: e.enraged ? 45 : 30, target: 'player', life: 3.0 });
+                projectiles.push({ mesh: nMesh, x: e.x, z: e.z, vx: dir.x * 80, vz: dir.y * 80, dmg: e.enraged ? 85 : 65, target: 'player', life: 3.0 });
             }
         }
 
@@ -1556,7 +1626,7 @@
                     e.charging = true;
                     e.chargeTimer = 0.6;
                     const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
-                    const chargeSpeed = 230;
+                    const chargeSpeed = 250;
                     e.chargeVx = dir.x * chargeSpeed; e.chargeVz = dir.y * chargeSpeed;
                     e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xffaa00); });
                 }
@@ -1567,29 +1637,28 @@
                 e.z += e.chargeVz * dt;
                 e.mesh.position.set(e.x, 4 + Math.sin(e.chargeTimer * 20) * 3, e.z);
                 
-                // Uderzenie w gracza podczas szarży (jednorazowe 30 HP)
+                // Uderzenie w gracza podczas szarży (jednorazowe 60 HP)
                 if (Math.hypot(e.x - player.x, e.z - player.z) < e.radius + player.radius + 5) {
-                    player.hp = Math.max(0, player.hp - 30);
+                    player.hp = Math.max(0, player.hp - 60);
                     flashDamageVignette();
                     e.charging = false;
                     e.speed = e.enraged ? e.baseSpeed * 1.35 : e.baseSpeed;
-                    e.chargeCooldown = e.enraged ? 6 : 9;
+                    e.chargeCooldown = e.enraged ? 5 : 8;
                     e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
                     spawnParticles(player.x, player.z, mats.blood);
                 }
                 if (e.chargeTimer <= 0) {
                     e.charging = false;
                     e.speed = e.enraged ? e.baseSpeed * 1.35 : e.baseSpeed;
-                    e.chargeCooldown = e.enraged ? 6 : 9;
+                    e.chargeCooldown = e.enraged ? 5 : 8;
                     e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
                 }
                 continue;
             } else {
                 e.chargeCooldown -= dt;
                 if (e.chargeCooldown <= 0) {
-                    // Rozpoczęcie sygnalizacji szarży (0.8s ostrzeżenia dla gracza)
                     e.telegraphing = true;
-                    e.telegraphTimer = 0.8;
+                    e.telegraphTimer = 0.5;
                     e.speed = 0;
                 }
             }
@@ -1599,13 +1668,12 @@
         if (e.type === 'final_boss') {
             e.aoeCooldown -= dt;
             if (e.aoeCooldown <= 0) {
-                e.aoeCooldown = e.enraged ? 3 : 6;
-                const marker = new THREE.Mesh(new THREE.CylinderGeometry(15, 15, 1, 16), new THREE.MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.5}));
+                e.aoeCooldown = e.enraged ? 2.5 : 5.0;
+                const marker = new THREE.Mesh(new THREE.CylinderGeometry(16, 16, 1, 16), new THREE.MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.6}));
                 marker.position.set(player.x, 0.5, player.z);
                 scene.add(marker);
-                aoeAttacks.push({ x: player.x, z: player.z, timer: 2.5, marker: marker, radius: 15, dmg: e.enraged ? 70 : 50 });
-                // Przywołanie silnych Latexów przez Srradka
-                if (e.enraged && Math.random() < 0.6) { spawnEnemy('latex'); }
+                aoeAttacks.push({ x: player.x, z: player.z, timer: 2.0, marker: marker, radius: 16, dmg: e.enraged ? 120 : 95 });
+                if (e.enraged && Math.random() < 0.7) { spawnEnemy('latex'); }
             }
         }
 
@@ -1613,14 +1681,13 @@
         if (e.type === 'janol') {
             e.bottleSlowCooldown -= dt;
             if (e.bottleSlowCooldown <= 0) {
-                e.bottleSlowCooldown = e.enraged ? 2 : 5;
+                e.bottleSlowCooldown = e.enraged ? 2 : 4;
                 const bMesh = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x88ccff, transparent: true, opacity: 0.85}));
                 bMesh.scale.set(1.5, 4, 1.5); scene.add(bMesh);
-                projectiles.push({ mesh: bMesh, x: e.x, z: e.z, vx: 0, vz: 0, vy: 0, dmg: 10, target: 'house', life: 4.0, isBottle: true, slowTrail: true });
-                // nadajemy mu prędkość w stronę domku
+                projectiles.push({ mesh: bMesh, x: e.x, z: e.z, vx: 0, vz: 0, vy: 0, dmg: 25, target: 'house', life: 4.0, isBottle: true, slowTrail: true });
                 const dir = new THREE.Vector2(-e.x, -e.z).normalize();
-                projectiles[projectiles.length-1].vx = dir.x * 45;
-                projectiles[projectiles.length-1].vz = dir.y * 45;
+                projectiles[projectiles.length-1].vx = dir.x * 55;
+                projectiles[projectiles.length-1].vz = dir.y * 55;
             }
         }
 
@@ -1658,6 +1725,25 @@
                 const overlap = house.radius + e.radius - hDist;
                 if (hDist > 0.01) { nx += (nx / hDist) * overlap; nz += (nz / hDist) * overlap; }
             }
+            
+            const pDist = Math.hypot(nx - player.x, nz - player.z);
+            const minPDist = player.radius + e.radius;
+            if (pDist < minPDist && pDist > 0.001) {
+                const overlap = minPDist - pDist;
+                nx += ((nx - player.x) / pDist) * overlap;
+                nz += ((nz - player.z) / pDist) * overlap;
+                
+                if (player.contactTimer <= 0) {
+                    let touchDmg = Math.max(10, Math.floor(e.dmg * 0.6));
+                    if (player.shieldLevel) touchDmg *= (1 - player.shieldLevel);
+                    player.hp = Math.max(0, player.hp - touchDmg);
+                    playSound('playerHit');
+                    flashDamageVignette();
+                    spawnParticles(player.x, player.z, mats.blood);
+                    player.contactTimer = 0.3;
+                }
+            }
+            
             e.x = nx; e.z = nz;
             e.mesh.position.set(e.x, 0, e.z); e.mesh.rotation.y = angle;
         } else {
@@ -1816,33 +1902,42 @@
       updateSpeechBubbles(dt);
 
       for (let i = 0; i < flyingMilks.length; i++) {
-          const fm = flyingMilks[i]; fm.angle += dt * 3.5;
+          const fm = flyingMilks[i]; fm.angle += dt * (3.8 * (fm.speedMult || 1));
           fm.mesh.position.x = player.x + Math.cos(fm.angle) * fm.radius;
           fm.mesh.position.z = player.z + Math.sin(fm.angle) * fm.radius;
-          fm.mesh.position.y = 8 + Math.sin(fm.angle * 2) * 2;
+          fm.mesh.position.y = 8 + Math.sin(fm.angle * 2.5) * 2.5;
           fm.mesh.rotation.y += dt * 5; fm.mesh.rotation.x += dt * 2;
           
           enemies.forEach(e => {
-              if (e.flashTimer <= 0 && Math.hypot(e.x - fm.mesh.position.x, e.z - fm.mesh.position.z) < e.radius + 4) {
-                  e.hp -= fm.dmg + player.dmg * 0.2; e.flashTimer = 0.2;
-                  e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x550000); });
+              if (e.flashTimer <= 0 && Math.hypot(e.x - fm.mesh.position.x, e.z - fm.mesh.position.z) < e.radius + 6) {
+                  let dmgDone = fm.dmg + player.dmg * 0.35;
+                  e.hp -= dmgDone; e.flashTimer = 0.18;
+                  e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xffffff); });
                   spawnParticles(e.x, e.z, mats.milkMat);
               }
           });
       }
 
       for (let i = 0; i < flyingNitros.length; i++) {
-          const fn = flyingNitros[i]; fn.angle += dt * 4.2;
+          const fn = flyingNitros[i]; fn.angle += dt * (4.5 * (fn.speedMult || 1));
           fn.mesh.position.x = player.x + Math.cos(fn.angle) * fn.radius;
           fn.mesh.position.z = player.z + Math.sin(fn.angle) * fn.radius;
-          fn.mesh.position.y = 8 + Math.sin(fn.angle * 2.5) * 2;
+          fn.mesh.position.y = 9 + Math.sin(fn.angle * 3) * 3;
           fn.mesh.rotation.y += dt * 6; fn.mesh.rotation.x += dt * 3;
           
           enemies.forEach(e => {
-              if (e.flashTimer <= 0 && Math.hypot(e.x - fn.mesh.position.x, e.z - fn.mesh.position.z) < e.radius + 5) {
-                  e.hp -= fn.dmg + player.dmg * 0.3; e.flashTimer = 0.2;
+              if (e.flashTimer <= 0 && Math.hypot(e.x - fn.mesh.position.x, e.z - fn.mesh.position.z) < e.radius + 8) {
+                  let dmgDone = fn.dmg + player.dmg * 0.5;
+                  e.hp -= dmgDone; e.flashTimer = 0.18;
                   e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x00ffcc); });
                   spawnParticles(e.x, e.z, new THREE.MeshBasicMaterial({color: 0x00ffcc}));
+                  playSound('explosion');
+                  enemies.forEach(nearby => {
+                      if (nearby !== e && Math.hypot(nearby.x - e.x, nearby.z - e.z) < 18) {
+                          nearby.hp -= dmgDone * 0.5;
+                          nearby.flashTimer = 0.15;
+                      }
+                  });
               }
           });
       }
