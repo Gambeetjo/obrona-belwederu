@@ -172,12 +172,26 @@
       0% { opacity: 0.3; transform: translateX(-50%) scale(0.95); }
       100% { opacity: 1.0; transform: translateX(-50%) scale(1.05); }
     }
+    #mobile-attack-btn {
+      position: fixed; bottom: 30px; right: 30px;
+      width: 90px; height: 90px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(200,80,40,0.9), rgba(140,50,20,0.8));
+      border: 4px solid var(--cream); color: var(--cream);
+      font-size: 36px; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 20px rgba(255,100,50,0.4), inset 0 -3px 8px rgba(0,0,0,0.3);
+      z-index: 200; pointer-events: auto; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.08s;
+    }
+    #mobile-attack-btn:active { transform: scale(0.85); background: radial-gradient(circle, rgba(255,120,60,0.95), rgba(200,70,30,0.9)); }
+    @media (min-width: 769px) { #mobile-attack-btn { display: none !important; } }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
   <div id="game-container"></div>
+  <div id="damage-vignette" style="position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(200,0,0,0.6) 100%);transition:opacity 0.08s;"></div>
   <div id="ui-overlay">
     <header id="hud" class="hidden">
       <div class="hud-box pixel-panel">
@@ -252,9 +266,196 @@
       <p>Wybierz jeden z dostępnych bonusów (Maks. poziom to 4):</p>
       <div id="bonus-cards"></div>
     </div>
+    <button id="mobile-attack-btn" class="hidden" ontouchstart="if(typeof performPlayerAttack==='function'&&gameState==='playing')performPlayerAttack()" onclick="return false">⚔️</button>
   </div>
 
   <script>
+    // --- AUDIO SYSTEM ---
+    let audioCtx = null;
+    let bgmOsc = null;
+    let bgmGain = null;
+
+    function initAudio() {
+        if (!audioCtx) {
+            const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtxClass) return null;
+            audioCtx = new AudioCtxClass();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        return audioCtx;
+    }
+
+    function startBGM() {
+        initAudio();
+        if (!audioCtx || bgmOsc) return;
+        bgmOsc = audioCtx.createOscillator();
+        bgmGain = audioCtx.createGain();
+        bgmOsc.type = 'sine';
+        bgmOsc.frequency.value = 55; // Low frequency drone
+        bgmGain.gain.value = 0.03;
+        bgmOsc.connect(bgmGain);
+        bgmGain.connect(audioCtx.destination);
+        bgmOsc.start();
+    }
+
+    function stopBGM() {
+        if (bgmOsc) {
+            bgmOsc.stop();
+            bgmOsc.disconnect();
+            bgmGain.disconnect();
+            bgmOsc = null;
+            bgmGain = null;
+        }
+    }
+
+    function playSound(type) {
+        if (!audioCtx) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const t = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const createNoise = (duration) => {
+            const bufferSize = audioCtx.sampleRate * duration;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const noiseFilter = audioCtx.createBiquadFilter();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.value = 1000;
+            const noiseGain = audioCtx.createGain();
+            noise.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            return { noise, noiseGain, noiseFilter };
+        };
+
+        if (type === 'attack') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(400, t);
+            osc.frequency.exponentialRampToValueAtTime(100, t + 0.08);
+            gain.gain.setValueAtTime(0.15, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+            osc.start(t);
+            osc.stop(t + 0.08);
+        } else if (type === 'hit') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(150, t);
+            osc.frequency.exponentialRampToValueAtTime(50, t + 0.1);
+            gain.gain.setValueAtTime(0.3, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+            osc.start(t);
+            osc.stop(t + 0.1);
+
+            const { noise, noiseGain, noiseFilter } = createNoise(0.1);
+            noiseFilter.frequency.value = 800;
+            noiseGain.gain.setValueAtTime(0.2, t);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+            noise.start(t);
+        } else if (type === 'kill') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(300, t);
+            osc.frequency.exponentialRampToValueAtTime(50, t + 0.15);
+            gain.gain.setValueAtTime(0.3, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+            osc.start(t);
+            osc.stop(t + 0.15);
+
+            const { noise, noiseGain, noiseFilter } = createNoise(0.15);
+            noiseFilter.type = 'highpass';
+            noiseFilter.frequency.value = 1000;
+            noiseGain.gain.setValueAtTime(0.2, t);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+            noise.start(t);
+        } else if (type === 'playerHit') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(200, t);
+            osc.frequency.exponentialRampToValueAtTime(80, t + 0.12);
+            gain.gain.setValueAtTime(0.3, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+            osc.start(t);
+            osc.stop(t + 0.12);
+
+            const { noise, noiseGain, noiseFilter } = createNoise(0.12);
+            noiseFilter.frequency.value = 500;
+            noiseGain.gain.setValueAtTime(0.2, t);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+            noise.start(t);
+        } else if (type === 'pickup') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, t);
+            osc.frequency.exponentialRampToValueAtTime(800, t + 0.2);
+            gain.gain.setValueAtTime(0.2, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+            osc.start(t);
+            osc.stop(t + 0.2);
+        } else if (type === 'levelup') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, t);
+            osc.frequency.setValueAtTime(554.37, t + 0.13); // C#
+            osc.frequency.setValueAtTime(659.25, t + 0.26); // E
+            gain.gain.setValueAtTime(0.25, t);
+            gain.gain.linearRampToValueAtTime(0.25, t + 0.3);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+            osc.start(t);
+            osc.stop(t + 0.4);
+        } else if (type === 'bossIntro') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100, t);
+            osc.frequency.exponentialRampToValueAtTime(60, t + 0.6);
+            gain.gain.setValueAtTime(0.01, t);
+            gain.gain.linearRampToValueAtTime(0.25, t + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
+            osc.start(t);
+            osc.stop(t + 0.6);
+        } else if (type === 'coal') {
+            const { noise, noiseGain, noiseFilter } = createNoise(0.1);
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.setValueAtTime(500, t);
+            noiseFilter.frequency.exponentialRampToValueAtTime(2000, t + 0.1);
+            noiseGain.gain.setValueAtTime(0.15, t);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+            noise.start(t);
+            osc.disconnect(); gain.disconnect();
+        } else if (type === 'parry') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1200, t);
+            osc.frequency.exponentialRampToValueAtTime(600, t + 0.15);
+            gain.gain.setValueAtTime(0.3, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+            osc.start(t);
+            osc.stop(t + 0.15);
+
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(2400, t);
+            osc2.frequency.exponentialRampToValueAtTime(1200, t + 0.15);
+            gain2.gain.setValueAtTime(0.15, t);
+            gain2.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.start(t);
+            osc2.stop(t + 0.15);
+        } else if (type === 'combo') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, t);
+            osc.frequency.exponentialRampToValueAtTime(1600, t + 0.1);
+            gain.gain.setValueAtTime(0.2, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+            osc.start(t);
+            osc.stop(t + 0.1);
+        }
+    }
+
     const container = document.getElementById('game-container');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#142238');
@@ -687,7 +888,7 @@
       const mesh = createEnemyMesh(type);
       mesh.position.set(x, 0, z); scene.add(mesh);
       
-      let hp = 20 + wave * 5; let speed = 25; let dmg = 10; let range = 8;
+      let hp = Math.floor(20 + wave * 5 + (wave > 8 ? Math.pow(wave - 8, 2) * 3 : 0)); let speed = 25; let dmg = 10; let range = 8;
       if (type === 'mexicano') { hp = 400; speed = 35; dmg = 15; range = 12; }
       else if (type === 'boss') { hp = 800; speed = 48; dmg = 30; range = 12; }
       else if (type === 'janol') { hp = 1200; speed = 30; dmg = 20; range = 12; }
@@ -696,7 +897,11 @@
       else if (type === 'tank') { hp *= 4; speed = 10; dmg = 25; }
       else if (type === 'thrower') { hp *= 1.3; speed = 18; range = 75; dmg = 10; }
       else if (type === 'runner') { hp = 10; speed = 40; dmg = 5; }
-      else if (type === 'latex') { hp = (20 + wave * 5) * 2; speed = 32; dmg = 20; range = 8; }
+      else if (type === 'latex') { hp *= 2; speed = 32; dmg = 20; range = 8; }
+      
+      if (type !== 'boss' && type !== 'final_boss' && type !== 'janol' && type !== 'mexicano' && type !== 'major') {
+          speed *= (1 + wave * 0.025);
+      }
       
       let target = 'player';
       if (type === 'thrower' || type === 'runner') target = 'house';
@@ -746,6 +951,7 @@
 
       function showBossIntro(type, bx = 0, bz = 0) {
         if (type !== 'boss' && type !== 'final_boss' && type !== 'janol' && type !== 'mexicano' && type !== 'major') return;
+        playSound('bossIntro');
         
         // Czyszczenie zwykłych wrogów przy wyjściu bossa (Pojedynek 1-na-1)
         for (let i = enemies.length - 1; i >= 0; i--) {
@@ -945,7 +1151,15 @@
     }
 
     // --- LOGIKA GRY ---
+    let damageVignetteTimer = 0;
+    function flashDamageVignette() {
+        const el = document.getElementById('damage-vignette');
+        el.style.opacity = '1';
+        damageVignetteTimer = 0.15;
+    }
+
     function initGame() {
+      startBGM();
       enemies.forEach(e => scene.remove(e.mesh)); enemies = [];
       particles.forEach(p => scene.remove(p.mesh)); particles = [];
       projectiles.forEach(p => scene.remove(p.mesh)); projectiles = [];
@@ -964,6 +1178,7 @@
       wave = 1; score = 0; xp = 0; level = 1; xpNeeded = 5; waveTimer = 0; pickupTimer = 0; coalTimer = 0;
       player.regenTimer = 0; player.rainTimer = 0; 
       finalBossDefeated = false; endingSequence = false;
+      if ('ontouchstart' in window) document.getElementById('mobile-attack-btn').classList.remove('hidden');
       upgradesPool.forEach(u => u.level = 0); updateUI();
       
       comboCount = 0; comboTimer = 0;
@@ -982,6 +1197,7 @@
     }
 
     function showLevelUpScreen() {
+      playSound('levelup');
       gameState = 'levelup'; document.getElementById('levelup-screen').classList.remove('hidden');
       const container = document.getElementById('bonus-cards'); container.innerHTML = '';
       let available = upgradesPool.filter(u => u.level < u.max && level >= u.minLevel).sort(() => Math.random() - 0.5).slice(0, 3);
@@ -1028,6 +1244,10 @@
 
     function update(dt) {
       if (gameState !== 'playing') return;
+      if (damageVignetteTimer > 0) {
+          damageVignetteTimer -= dt;
+          if (damageVignetteTimer <= 0) document.getElementById('damage-vignette').style.opacity = '0';
+      }
       
       if (endingSequence && ambulance) {
           ambulance.timer += dt;
@@ -1074,6 +1294,7 @@
                   ambulance.step = 4;
               }
           } else if (ambulance.step === 4) {
+              stopBGM();
               gameState = 'gameover';
               document.getElementById('hud').classList.add('hidden'); document.getElementById('gameover-screen').classList.remove('hidden');
               document.getElementById('gameover-reason').innerText = "Wygrałeś! Konon zabrany do Choroszczy na stałe!";
@@ -1162,6 +1383,7 @@
                   if (dist < closestDist) { closestDist = dist; targetEnemy = e; }
               });
               if (targetEnemy) {
+                  playSound('coal');
                   player.coalTimer = 0;
                   const hitVector = new THREE.Vector2(targetEnemy.x - player.x, targetEnemy.z - player.z).normalize();
                   const mesh = new THREE.Mesh(geos.box, mats.coalMat); mesh.scale.set(3,3,3);
@@ -1185,6 +1407,7 @@
               for (let j = 0; j < 12; j++) spawnParticles(aoe.x, aoe.z, mats.coalMat); // Kamera impact particles
               if (Math.hypot(player.x - aoe.x, player.z - aoe.z) <= aoe.radius + player.radius) {
                   player.hp -= aoe.dmg;
+                  flashDamageVignette();
                   spawnParticles(player.x, player.z, mats.blood);
               }
               if (Math.hypot(aoe.x, aoe.z) <= house.radius + aoe.radius) {
@@ -1209,7 +1432,10 @@
       }
       
       let stopSpawn = enemies.some(e => e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major') || finalBossDefeated;
-      if (!stopSpawn && wave < 20 && Math.random() < dt / Math.max(0.1, 2.5 - wave * 0.1)) spawnEnemy();
+      let spawnChance = dt / Math.max(0.08, 2.5 - wave * 0.12);
+      if (wave >= 10) spawnChance *= 1.5;
+      if (wave >= 15) spawnChance *= 1.8;
+      if (!stopSpawn && wave < 20 && Math.random() < spawnChance) spawnEnemy();
 
       // Aktualizacja wrogów
       for (let i = enemies.length - 1; i >= 0; i--) {
@@ -1220,6 +1446,7 @@
         }
 
         if (e.hp <= 0) {
+          playSound('kill');
           const isBossType = (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major');
           score += (isBossType ? 100 : 10);
           
@@ -1247,6 +1474,7 @@
           // Combo
           comboCount++; comboTimer = 2.5;
           if (comboCount >= 2) {
+              if (comboCount >= 3) playSound('combo');
               const comboEl = document.getElementById('combo-display');
               comboEl.textContent = comboCount + 'x COMBO!';
               comboEl.classList.remove('hidden');
@@ -1342,6 +1570,7 @@
                 // Uderzenie w gracza podczas szarży (jednorazowe 30 HP)
                 if (Math.hypot(e.x - player.x, e.z - player.z) < e.radius + player.radius + 5) {
                     player.hp = Math.max(0, player.hp - 30);
+                    flashDamageVignette();
                     e.charging = false;
                     e.speed = e.enraged ? e.baseSpeed * 1.35 : e.baseSpeed;
                     e.chargeCooldown = e.enraged ? 6 : 9;
@@ -1446,7 +1675,7 @@
                     if (realDist <= e.radius + targetRadius + 6) {
                         let dealtDmg = e.dmg;
                         if (e.target === 'player' && player.shieldLevel) dealtDmg *= (1 - player.shieldLevel);
-                        if (e.target === 'player') player.hp -= dealtDmg;
+                        if (e.target === 'player') { player.hp -= dealtDmg; playSound('playerHit'); flashDamageVignette(); }
                         else { house.hp -= dealtDmg; house.lastHitTime = performance.now(); }
                     }
                 }
@@ -1481,6 +1710,7 @@
           } else {
               // Zbijanie/Parowanie pocisków wroga zamachem kulachy w locie!
               if (player.isAttacking && Math.hypot(p.x - player.x, p.z - player.z) < player.attackRange + 12) {
+                  playSound('parry');
                   spawnParticles(p.x, p.z, new THREE.MeshBasicMaterial({color: 0xffff00}));
                   spawnSpeechBubble(player.x, player.z, 'ZBIJCIE! 🪓', 1.0);
                   hit = true;
@@ -1488,6 +1718,8 @@
                   let incomingDmg = p.dmg;
                   if (player.shieldLevel) incomingDmg *= (1 - player.shieldLevel);
                   player.hp = Math.max(0, player.hp - incomingDmg);
+                  playSound('playerHit');
+                  flashDamageVignette();
                   spawnParticles(player.x, player.z, mats.blood); hit = true;
               } else if (p.target === 'house' && Math.hypot(p.x, p.z) < house.radius + 4) {
                   let incomingDmg = p.dmg;
@@ -1528,6 +1760,7 @@
           }
 
           if (distToPlayer < player.radius + 6) {
+              playSound('pickup');
               let healDmg = 30;
               if (p.type === 'milk') {
                   player.hp = Math.min(player.maxHp, player.hp + healDmg);
@@ -1645,7 +1878,9 @@
       updateUI();
 
       if (player.hp <= 0 || house.hp <= 0) {
+          stopBGM();
           gameState = 'gameover';
+          document.getElementById('mobile-attack-btn').classList.add('hidden');
           document.getElementById('hud').classList.add('hidden'); document.getElementById('gameover-screen').classList.remove('hidden');
           document.getElementById('gameover-reason').innerText = (player.hp <= 0) ? "Młodzież bandycka cię ukróciła!" : "Domek drewniany rozwalony całkowicie!";
           document.getElementById('final-stats').innerHTML = `Przetrwane fale: <strong>${wave}</strong><br>Punkty: <strong>${score}</strong>`;
@@ -1700,6 +1935,7 @@
       player.isAttacking = true; 
       player.attackAnimTimer = 0.10; 
       player.attackTimer = player.attackCooldown;
+      playSound('attack');
 
       let hitVector = new THREE.Vector2(0, 1);
       let closestDist = player.attackRange + 10; let targetEnemy = null;
@@ -1715,6 +1951,7 @@
           hitVector = new THREE.Vector2(Math.sin(player.mesh.rotation.y), Math.cos(player.mesh.rotation.y)).normalize();
       }
 
+      let hitSoundPlayed = false;
       enemies.forEach(e => {
           let dist = Math.hypot(e.x - player.x, e.z - player.z) - e.radius - player.radius;
           if (dist <= player.attackRange + 5) {
@@ -1725,6 +1962,7 @@
                   if (player.critChance && Math.random() < player.critChance) finalDmg *= 2;
                   if (player.fireLevel) { e.burnTimer = 3.0; e.burnDmg = player.fireLevel * 10; }
                   e.hp -= finalDmg; e.flashTimer = 0.1;
+                  if (!hitSoundPlayed) { playSound('hit'); hitSoundPlayed = true; }
                   if (player.lifesteal) player.hp = Math.min(player.maxHp, player.hp + player.lifesteal);
                   e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x550000); });
                   e.x += dirToE.x * player.knockback * (e.knockbackMult !== undefined ? e.knockbackMult : 1.0); 
