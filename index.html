@@ -558,7 +558,7 @@
         mesh: pGroup, arm: armPivot, rangeMesh: rangeMesh, legL: legL, legR: legR,
         x: 0, z: 60, hp: startHp, maxHp: startHp, speed: startSpeed, radius: 7,
         attackRange: 38, attackAngle: Math.PI / 3, attackCooldown: 0.72, attackTimer: 0,
-        dmg: 20, knockback: 18, isAttacking: false, attackAnimTimer: 0, walkAnimTimer: 0
+        dmg: 20, knockback: 4.5, isAttacking: false, attackAnimTimer: 0, walkAnimTimer: 0
       };
     }
 
@@ -1148,20 +1148,8 @@
           }
       }
 
-      // Atak Gracza (Auto-atak + ręczny atak Enter/Spacja/Kliknięcie)
+      // Atak Gracza (Auto-atak wyłączony dla zwiększenia poziomu trudności, tylko ręczny)
       player.attackTimer -= dt;
-      if (player.attackTimer <= 0) {
-        let searchRange = player.attackRange;
-        let closestDist = searchRange; let targetEnemy = null;
-        enemies.forEach(e => {
-            const dist = Math.hypot(e.x - player.x, e.z - player.z) - e.radius - player.radius;
-            if (dist < closestDist) { closestDist = dist; targetEnemy = e; }
-        });
-
-        if (targetEnemy) {
-            performPlayerAttack();
-        }
-      }
 
       // Rzut węglem - niezależny cooldown
       if (player.coalLevel > 0) {
@@ -1522,13 +1510,24 @@
       }
 
       pickupTimer += dt;
-      if (pickupTimer >= 20) { pickupTimer = 0; spawnPickup(); }
+      if (pickupTimer >= 80) { pickupTimer = 0; spawnPickup(); }
       for(let i = pickups.length - 1; i >= 0; i--) {
           const p = pickups[i];
           p.bobTimer += dt * 3;
           p.mesh.position.y = 5 + Math.sin(p.bobTimer) * 2;
           p.mesh.rotation.y += dt;
-          if (Math.hypot(p.x - player.x, p.z - player.z) < player.radius + 6) {
+          
+          let distToPlayer = Math.hypot(p.x - player.x, p.z - player.z);
+          if (player.magnetRadius && distToPlayer < player.magnetRadius) {
+              const pullSpeed = 150 * dt;
+              p.x += (player.x - p.x) / distToPlayer * pullSpeed;
+              p.z += (player.z - p.z) / distToPlayer * pullSpeed;
+              p.mesh.position.x = p.x;
+              p.mesh.position.z = p.z;
+              distToPlayer = Math.hypot(p.x - player.x, p.z - player.z);
+          }
+
+          if (distToPlayer < player.radius + 6) {
               let healDmg = 30;
               if (p.type === 'milk') {
                   player.hp = Math.min(player.maxHp, player.hp + healDmg);
