@@ -814,7 +814,45 @@
       { id: 'explosiveCoal', name: 'Wybuchowy Węgiel', desc: 'Rzucany węgiel wywołuje eksplozję obszarową.', level: 0, max: 3, minLevel: 6, apply: () => { player.explosiveCoal = (player.explosiveCoal || 0) + 1; } }
     ];
 
-    // --- GRACZ ---
+    // --- GRACZ I LATARKA CZOŁOWA ---
+    let flashlightBeamTexture = null;
+    function getFlashlightBeamTexture() {
+      if (flashlightBeamTexture) return flashlightBeamTexture;
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      
+      // Delikatny, realistyczny stożek światła z latarki
+      const grad = ctx.createLinearGradient(0, 0, 0, 512);
+      grad.addColorStop(0.0, 'rgba(255, 255, 225, 0.85)');
+      grad.addColorStop(0.15, 'rgba(255, 250, 200, 0.65)');
+      grad.addColorStop(0.45, 'rgba(255, 240, 180, 0.35)');
+      grad.addColorStop(0.80, 'rgba(255, 230, 160, 0.12)');
+      grad.addColorStop(1.0, 'rgba(255, 220, 140, 0.0)');
+      
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(128 - 14, 0);
+      ctx.lineTo(128 + 14, 0);
+      ctx.lineTo(248, 480);
+      ctx.quadraticCurveTo(128, 512, 8, 480);
+      ctx.closePath();
+      ctx.fill();
+
+      // Jaśniejszy rdzeń światła w centrum wiązki
+      const coreGrad = ctx.createRadialGradient(128, 140, 4, 128, 160, 130);
+      coreGrad.addColorStop(0.0, 'rgba(255, 255, 255, 0.55)');
+      coreGrad.addColorStop(0.5, 'rgba(255, 250, 210, 0.25)');
+      coreGrad.addColorStop(1.0, 'rgba(255, 240, 180, 0)');
+      ctx.fillStyle = coreGrad;
+      ctx.beginPath();
+      ctx.ellipse(128, 160, 55, 120, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      flashlightBeamTexture = new THREE.CanvasTexture(canvas);
+      return flashlightBeamTexture;
+    }
+
     function createPlayer() {
       const pGroup = new THREE.Group();
       const body = new THREE.Mesh(geos.box, mats.playerSweater); body.scale.set(13, 12, 10); body.position.y = 11; body.castShadow = true;
@@ -827,10 +865,62 @@
       const spike2 = new THREE.Mesh(geos.box, mats.playerHair); spike2.scale.set(2,4,2); spike2.position.set(2, 26.5, -2);
       pGroup.add(hair, spike1, spike2);
 
-      const lampStrap = new THREE.Mesh(geos.box, mats.pickaxeHead); lampStrap.scale.set(8.5, 1, 8.5); lampStrap.position.set(0, 23, 0);
-      const lamp = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0x111111})); lamp.scale.set(4, 3, 2); lamp.position.set(0, 23, 4);
-      const lampGlow = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0xaaddff})); lampGlow.scale.set(3, 2, 0.5); lampGlow.position.set(0, 23, 5);
-      const pointLight = new THREE.PointLight(0xaaddff, 1, 140); pointLight.position.set(0, 23, 7); pGroup.add(pointLight);
+      // Latarka czołowa (Headlamp)
+      const lampStrap = new THREE.Mesh(geos.box, mats.pickaxeHead); 
+      lampStrap.scale.set(8.5, 1.2, 8.5); lampStrap.position.set(0, 23, 0);
+      
+      const lamp = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0x18181b})); 
+      lamp.scale.set(4, 3, 2.2); lamp.position.set(0, 23, 4.2);
+      
+      const lampGlow = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0xffffee})); 
+      lampGlow.scale.set(3, 2, 0.5); lampGlow.position.set(0, 23, 5.2);
+
+      const lampLens = new THREE.Mesh(geos.cylinder, new THREE.MeshBasicMaterial({color: 0xfffae0, transparent: true, opacity: 0.85}));
+      lampLens.scale.set(1.4, 0.3, 1.4); lampLens.rotation.x = Math.PI / 2; lampLens.position.set(0, 23, 5.3);
+
+      // Światło punktowe wokół głowy (delikatne oświetlenie sylwetki)
+      const pointLight = new THREE.PointLight(0xfff0cc, 1.2, 50); 
+      pointLight.position.set(0, 23, 6); 
+      pGroup.add(pointLight);
+
+      // Reflektor kierunkowy (SpotLight) oświetlający przestrzeń i modele przed graczem
+      const spotLight = new THREE.SpotLight(0xfff6dd, 3.2, 200, Math.PI / 4.5, 0.45, 1.1);
+      spotLight.position.set(0, 23, 5);
+      const spotTarget = new THREE.Object3D();
+      spotTarget.position.set(0, 0, 75);
+      pGroup.add(spotTarget);
+      spotLight.target = spotTarget;
+      pGroup.add(spotLight);
+
+      // Rzutowana plama światła na ziemi (widoczny delikatny snop światła padający z latarki)
+      const beamMat = new THREE.MeshBasicMaterial({
+          map: getFlashlightBeamTexture(),
+          transparent: true,
+          opacity: 0.52,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+      });
+      const groundBeam = new THREE.Mesh(new THREE.PlaneGeometry(55, 85), beamMat);
+      groundBeam.rotation.x = -Math.PI / 2;
+      groundBeam.position.set(0, 0.25, 46.5);
+      pGroup.add(groundBeam);
+
+      // Wolumetryczny stożek światła w powietrzu (delikatna poświata padająca w dół ku ziemi)
+      const coneGeo = new THREE.CylinderGeometry(0.8, 20, 65, 16, 1, true);
+      coneGeo.rotateX(Math.PI / 2);
+      const coneMat = new THREE.MeshBasicMaterial({
+          color: 0xfff4cc,
+          transparent: true,
+          opacity: 0.12,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+      });
+      const coneMesh = new THREE.Mesh(coneGeo, coneMat);
+      coneMesh.position.set(0, 11.5, 38);
+      coneMesh.rotation.x = 0.32;
+      pGroup.add(coneMesh);
 
       const armPivot = new THREE.Group(); armPivot.position.set(7, 13, 0); 
       const arm = new THREE.Mesh(geos.box, mats.playerSweater); arm.scale.set(3.5, 8, 3.5); arm.position.set(0, -3, 3);
@@ -838,7 +928,7 @@
       const pHead = new THREE.Mesh(geos.box, mats.pickaxeHead); pHead.scale.set(2.5, 2.5, 12); pHead.position.set(0, -3, 15);
       armPivot.add(arm, handle, pHead);
 
-      pGroup.add(body, legL, legR, head, lampStrap, lamp, lampGlow, armPivot); scene.add(pGroup);
+      pGroup.add(body, legL, legR, head, lampStrap, lamp, lampGlow, lampLens, armPivot); scene.add(pGroup);
 
       const rangeGeo = new THREE.RingGeometry(0.9, 1, 32); const rangeMat = new THREE.MeshBasicMaterial({color: 0xffaaaa, side: THREE.DoubleSide, transparent: true, opacity: 0.3});
       const rangeMesh = new THREE.Mesh(rangeGeo, rangeMat); rangeMesh.rotation.x = Math.PI / 2; rangeMesh.position.y = 0.5; scene.add(rangeMesh);
@@ -847,6 +937,7 @@
       const startSpeed = cheatActive ? 200 : 170;
       return {
         mesh: pGroup, arm: armPivot, rangeMesh: rangeMesh, legL: legL, legR: legR,
+        spotLight: spotLight, groundBeam: groundBeam, coneMesh: coneMesh,
         x: 0, z: 60, hp: startHp, maxHp: startHp, speed: startSpeed, radius: 7,
         attackRange: 38, attackAngle: Math.PI / 3, attackCooldown: 0.28, attackTimer: 0,
         dmg: 20, knockback: 4.5, isAttacking: false, attackAnimTimer: 0, walkAnimTimer: 0,
@@ -2330,6 +2421,15 @@
       // Fluktuacja latarni (płomień)
       torchFlicker += dt * 8;
       lanternLight.intensity = 2.5 + Math.sin(torchFlicker) * 0.5 + Math.sin(torchFlicker * 2.3) * 0.3;
+
+      // Delikatne drganie snopa światła z latarki czołowej
+      if (player && player.spotLight) {
+          const lampPulse = Math.sin(torchFlicker * 1.5) * 0.15;
+          player.spotLight.intensity = 3.0 + lampPulse;
+          if (player.groundBeam && player.groundBeam.material) {
+              player.groundBeam.material.opacity = 0.50 + lampPulse * 0.25;
+          }
+      }
 
       // Combo timer
       if (comboTimer > 0) {
