@@ -86,14 +86,19 @@
       position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
       text-align: center; pointer-events: none; z-index: 20;
     }
-    #boss-hp-track { width: 400px; height: 24px; background: #333; border: 3px solid #000; margin-top: 5px; }
+    #boss-hp-track { width: 400px; height: 24px; background: #333; border: 3px solid #000; margin-top: 5px; position: relative; }
     #boss-hp-bar { height: 100%; background: linear-gradient(90deg, #990000, #ff3300); transition: width 0.1s; }
+    #boss-stagger-track { width: 400px; height: 8px; background: rgba(10,10,10,0.8); border: 2px solid #554400; margin-top: 3px; border-radius: 2px; overflow: hidden; position: relative; }
+    #boss-stagger-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #00d4ff, #ffcc00); transition: width 0.08s; }
+    #boss-stagger-bar.staggered { background: #ffff00; animation: staggerGlow 0.3s infinite alternate; }
+    @keyframes staggerGlow { from { opacity: 0.6; } to { opacity: 1.0; } }
     #boss-name { font-size: 20px; color: #ff3333; text-shadow: 2px 2px 0 #000; font-weight: bold; }
     #boss-name.enraged { color: #ff9900; animation: bossRage 0.3s infinite alternate; }
     @keyframes bossRage { from { text-shadow: 2px 2px 0 #000; } to { text-shadow: 0 0 20px #ff4400, 2px 2px 0 #000; } }
     @media (max-width: 768px) {
       #boss-hud { top: 10px; }
       #boss-hp-track { width: 200px; height: 15px; border: 2px solid #000; }
+      #boss-stagger-track { width: 200px; height: 6px; border: 1px solid #554400; }
       #boss-name { font-size: 14px; }
     }
     #boss-intro {
@@ -198,19 +203,41 @@
       #wave-event-banner { font-size: 12px; top: 22%; }
       #highscore-table { font-size: 9px; }
     }
+    #mobile-controls {
+      position: fixed; bottom: 25px; right: 25px;
+      display: flex; gap: 15px; align-items: flex-end;
+      z-index: 200; pointer-events: none;
+    }
+    #mobile-controls > * { pointer-events: auto; }
+    #mobile-dash-btn {
+      width: 70px; height: 70px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,180,230,0.92), rgba(0,90,150,0.85));
+      border: 3px solid var(--cream); color: #fff;
+      font-size: 28px; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 16px rgba(0,200,255,0.4), inset 0 -3px 8px rgba(0,0,0,0.3);
+      user-select: none; -webkit-tap-highlight-color: transparent;
+      transition: transform 0.08s, opacity 0.15s;
+      position: relative; overflow: hidden;
+    }
+    #mobile-dash-btn:active { transform: scale(0.85); }
+    .dash-cd-overlay {
+      position: absolute; inset: 0; background: rgba(0, 0, 0, 0.72);
+      height: 0%; bottom: 0; top: auto; pointer-events: none;
+      transition: height 0.05s linear;
+    }
     #mobile-attack-btn {
-      position: fixed; bottom: 30px; right: 30px;
       width: 90px; height: 90px; border-radius: 50%;
-      background: radial-gradient(circle, rgba(200,80,40,0.9), rgba(140,50,20,0.8));
+      background: radial-gradient(circle, rgba(200,80,40,0.92), rgba(140,50,20,0.85));
       border: 4px solid var(--cream); color: var(--cream);
       font-size: 36px; display: flex; align-items: center; justify-content: center;
       box-shadow: 0 0 20px rgba(255,100,50,0.4), inset 0 -3px 8px rgba(0,0,0,0.3);
-      z-index: 200; pointer-events: auto; user-select: none;
-      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-tap-highlight-color: transparent;
       transition: transform 0.08s;
     }
     #mobile-attack-btn:active { transform: scale(0.85); background: radial-gradient(circle, rgba(255,120,60,0.95), rgba(200,70,30,0.9)); }
-    @media (min-width: 769px) { #mobile-attack-btn { display: none !important; } }
+    @media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+      #mobile-controls { display: none !important; }
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -235,6 +262,7 @@
       <div id="boss-hud" class="hidden">
         <div id="boss-name">BOSS</div>
         <div id="boss-hp-track"><div id="boss-hp-bar" style="width:100%"></div></div>
+        <div id="boss-stagger-track"><div id="boss-stagger-bar" style="width:0%"></div></div>
       </div>
       <div id="boss-intro" class="hidden">
         <div id="boss-intro-name"></div>
@@ -249,7 +277,7 @@
 
     <div id="start-screen" class="screen">
       <h1>Obrona Belwederu 3D</h1>
-      <p>Broń domku przed hordami wrogów! Steruj klawiszami WASD lub joystickiem. Postać atakuje automatycznie oraz ręcznie Enterem / Kliknięciem.</p>
+      <p>Broń domku przed hordami wrogów! Steruj klawiszami WASD lub joystickiem. Walcz kulachą, wykonuj Odskoki Boże (Dash) i paruj wrogie pociski!</p>
       <p style="color: var(--gold); font-size: 12px; margin: 10px 0; text-shadow: 1px 1px 0 #000;">
         💡 Naciśnij <strong>[H]</strong> w dowolnym momencie, aby otworzyć Instrukcję Gry!
       </p>
@@ -264,15 +292,14 @@
       <div style="text-align: left; max-width: 540px; font-size: 11px; line-height: 1.6; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; border: 2px solid var(--gold); color: #fff;">
         <p><strong>🏠 CEL GRY:</strong> Obroń Belweder (drewniany domek) oraz swoją postać przed nacierającymi hordami przeciwników!</p>
         <hr style="border-color: rgba(255,255,255,0.2); margin: 8px 0;">
-        <p><strong>🎮 STEROWANIE I ATAK:</strong></p>
-        <p>• <strong>Ruch:</strong> Klawisze <strong>WASD</strong> lub Ekranowy Joystick.<br>
-        • <strong>Atak & Parowanie:</strong> Klawisz <strong>ENTER</strong>, <strong>SPACJA</strong> lub <strong>KLIKNIĘCIE MYSZY</strong> wywołuje zamach kulachą (auto-atak działa pomocniczo przy bliskich wrogach).</p>
+        <p><strong>🎮 STEROWANIE, ATAK I ODSKOK (DASH):</strong></p>
+        <p>• <strong>Ruch:</strong> Klawisze <strong>WASD</strong> lub Ekranowy Joystick na telefonie.<br>
+        • <strong>Atak & Parowanie:</strong> <strong>ENTER</strong>, <strong>LPM</strong> lub przycisk <strong>⚔️</strong> (możesz trzymać wciśnięty dla ciągłego ataku!).<br>
+        • <strong>⚡ Odskok Boży (Dash):</strong> Klawisz <strong>SPACJA</strong>, <strong>SHIFT</strong>, <strong>PPM</strong> lub przycisk <strong>⚡</strong> na telefonie. Daje chwilową nietykalność i pozwala uciec z okrążenia!</p>
         <hr style="border-color: rgba(255,255,255,0.2); margin: 8px 0;">
-        <p><strong>🪓 PAROWANIE (ZBIJANIE POCISKÓW):</strong></p>
-        <p>Zamachnij się kulachą dokładnie wtedy, gdy leci w Twoją stronę puszka lub butelka, aby <strong>zbić pocisk w locie</strong> i uniknąć obrażeń!</p>
-        <hr style="border-color: rgba(255,255,255,0.2); margin: 8px 0;">
-        <p><strong>⚔️ FALE I TAJEMNICZY BOSSOWIE:</strong></p>
-        <p>Gra składa się z <strong>20 Fal</strong>. Co 4-5 fal na mapę wkracza potężny, tajemniczy <strong>Boss</strong> (łącznie 5 groźnych Bossów!). Podczas pojedynku z Bossem zwykli przeciwnicy znikają, tworząc czysty pojedynek 1-na-1!</p>
+        <p><strong>🪓 PAROWANIE & OGŁUSZENIE (STAGGER) BOSSÓW:</strong></p>
+        <p>• Zbijaj lecące butelki zamachem kulachy w locie!<br>
+        • Bossowie posiadają żółty pasek <strong>Ogłuszenia</strong> – ciągły atak napełnia pasek, po czym Boss traci przytomność na 3.5s i przyjmuje +50% obrażeń!</p>
       </div>
       <div id="cheat-status" style="color: #00ffaa; font-weight: bold; margin-top: 10px; font-size: 12px;" class="hidden"></div>
       <button class="btn" id="close-help-btn" style="margin-top: 12px; font-size: 13px;">Zamknij (Esc / H)</button>
@@ -294,7 +321,17 @@
       <p>Wybierz jeden z dostępnych bonusów (Maks. poziom to 4):</p>
       <div id="bonus-cards"></div>
     </div>
-    <button id="mobile-attack-btn" class="hidden" ontouchstart="if(typeof performPlayerAttack==='function'&&gameState==='playing')performPlayerAttack()" onclick="return false">⚔️</button>
+    <div id="mobile-controls" class="hidden">
+      <button id="mobile-dash-btn" onclick="return false" aria-label="Unik Dash">
+        <span style="font-size: 20px; line-height: 1;">⚡</span>
+        <span style="font-size: 8px; font-family: inherit; margin-top: 2px;">UNIK</span>
+        <div id="mobile-dash-cd" class="dash-cd-overlay"></div>
+      </button>
+      <button id="mobile-attack-btn" onclick="return false" aria-label="Atak Kulachą">
+        <span style="font-size: 22px; line-height: 1;">🪓</span>
+        <span style="font-size: 8px; font-family: inherit; margin-top: 2px;">ATAK</span>
+      </button>
+    </div>
   </div>
 
   <script>
@@ -481,6 +518,31 @@
             gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
             osc.start(t);
             osc.stop(t + 0.1);
+        } else if (type === 'dash') {
+            const { noise, noiseGain, noiseFilter } = createNoise(0.18);
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.setValueAtTime(900, t);
+            noiseFilter.frequency.exponentialRampToValueAtTime(120, t + 0.18);
+            noiseGain.gain.setValueAtTime(0.35, t);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+            noise.start(t);
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(280, t);
+            osc.frequency.exponentialRampToValueAtTime(80, t + 0.18);
+            gain.gain.setValueAtTime(0.25, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+            osc.start(t);
+            osc.stop(t + 0.18);
+        } else if (type === 'stagger') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(650, t);
+            osc.frequency.setValueAtTime(880, t + 0.08);
+            osc.frequency.setValueAtTime(1180, t + 0.16);
+            gain.gain.setValueAtTime(0.35, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.35);
+            osc.start(t);
+            osc.stop(t + 0.35);
         }
     }
 
@@ -787,7 +849,9 @@
         mesh: pGroup, arm: armPivot, rangeMesh: rangeMesh, legL: legL, legR: legR,
         x: 0, z: 60, hp: startHp, maxHp: startHp, speed: startSpeed, radius: 7,
         attackRange: 38, attackAngle: Math.PI / 3, attackCooldown: 0.18, attackTimer: 0,
-        dmg: 20, knockback: 4.5, isAttacking: false, attackAnimTimer: 0, walkAnimTimer: 0
+        dmg: 20, knockback: 4.5, isAttacking: false, attackAnimTimer: 0, walkAnimTimer: 0,
+        isDashing: false, dashTimer: 0, dashCooldown: 0, dashMaxCooldown: 1.2,
+        dashVx: 0, dashVz: 0, invulnTimer: 0
       };
     }
 
@@ -1048,7 +1112,8 @@
       let kbMult = isBoss ? 0.0 : 1.0; // NA BOSSÓW NIE DZIAŁA ODRZUT!
       
       let baseSpeed = speed;
-      enemies.push({ mesh, type, x, z, hp, maxHp: hp, speed, baseSpeed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult, enraged: false, chargeCooldown: 9, chargeTimer: 0, charging: false, telegraphing: false, telegraphTimer: 0, chargeVx: 0, chargeVz: 0, bottleSlowCooldown: 5, mexicanoCanTimer: 3, majorNitroTimer: 4, phaseTriggered: false });
+      let maxStag = (type === 'mexicano' ? 250 : (type === 'boss' ? 400 : (type === 'janol' ? 550 : (type === 'major' ? 800 : (type === 'final_boss' ? 1200 : 100)))));
+      enemies.push({ mesh, type, x, z, hp, maxHp: hp, speed, baseSpeed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult, enraged: false, chargeCooldown: 9, chargeTimer: 0, charging: false, telegraphing: false, telegraphTimer: 0, chargeVx: 0, chargeVz: 0, bottleSlowCooldown: 5, mexicanoCanTimer: 3, majorNitroTimer: 4, phaseTriggered: false, stagger: 0, maxStagger: maxStag, isStaggered: false, staggerTimer: 0 });
       showBossIntro(type, x, z);
     }
 
@@ -1322,10 +1387,13 @@
       player = createPlayer(); updateRangeIndicator(); player.coalLevel = 0;
       const startHouseHp = cheatActive ? 9999 : 150;
       house.hp = startHouseHp; house.maxHp = startHouseHp; house.lastHitTime = 0; house.armor = 0; house.spikeDmg = 0;
-      wave = 1; score = 0; xp = 0; level = 1; xpNeeded = 5; waveTimer = 0; pickupTimer = 0; coalTimer = 0;
+      wave = 1; score = 0; xp = 0; level = 1; xpNeeded = 3; waveTimer = 0; pickupTimer = 0; coalTimer = 0;
       player.regenTimer = 0; player.rainTimer = 0; 
       finalBossDefeated = false; endingSequence = false;
-      if ('ontouchstart' in window) document.getElementById('mobile-attack-btn').classList.remove('hidden');
+      if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+          const mControls = document.getElementById('mobile-controls');
+          if (mControls) mControls.classList.remove('hidden');
+      }
       upgradesPool.forEach(u => u.level = 0); updateUI();
       
       comboCount = 0; comboTimer = 0;
@@ -1384,8 +1452,33 @@
           if (boss.enraged && !nameEl.classList.contains('enraged')) nameEl.classList.add('enraged');
           else if (!boss.enraged) nameEl.classList.remove('enraged');
           document.getElementById('boss-hp-bar').style.width = Math.max(0, (boss.hp / boss.maxHp) * 100) + '%';
+          
+          const staggerBar = document.getElementById('boss-stagger-bar');
+          if (staggerBar) {
+              if (boss.isStaggered) {
+                  staggerBar.classList.add('staggered');
+                  staggerBar.style.width = Math.max(0, (boss.staggerTimer / 3.5) * 100) + '%';
+              } else {
+                  staggerBar.classList.remove('staggered');
+                  const sPct = Math.min(100, ((boss.stagger || 0) / boss.maxStagger) * 100);
+                  staggerBar.style.width = sPct + '%';
+              }
+          }
       } else {
           bossHud.classList.add('hidden');
+      }
+
+      const dashBtn = document.getElementById('mobile-dash-btn');
+      const dashCdEl = document.getElementById('mobile-dash-cd');
+      if (dashBtn && player && player.dashMaxCooldown) {
+          if (player.dashCooldown > 0) {
+              const cdPct = (player.dashCooldown / player.dashMaxCooldown) * 100;
+              if (dashCdEl) dashCdEl.style.height = cdPct + '%';
+              dashBtn.style.opacity = '0.65';
+          } else {
+              if (dashCdEl) dashCdEl.style.height = '0%';
+              dashBtn.style.opacity = '1.0';
+          }
       }
     }
 
@@ -1450,6 +1543,9 @@
           return;
       }
 
+      if (player.dashCooldown > 0) player.dashCooldown -= dt;
+      if (player.invulnTimer > 0) player.invulnTimer -= dt;
+
       let isMoving = false;
       let dx = 0, dz = 0;
       
@@ -1461,14 +1557,26 @@
       }
       
       let newX = player.x, newZ = player.z;
-      if (dx !== 0 || dz !== 0) {
+      if (player.isDashing) {
+          player.dashTimer -= dt;
+          newX += player.dashVx * dt;
+          newZ += player.dashVz * dt;
+          if (Math.random() < 0.45) {
+              const dust = new THREE.Mesh(geos.box, mats.rock);
+              dust.scale.set(1.6, 1.6, 1.6);
+              dust.position.set(player.x + (Math.random()-0.5)*4, 1.5, player.z + (Math.random()-0.5)*4);
+              scene.add(dust);
+              particles.push({ mesh: dust, vx: (Math.random()-0.5)*12, vy: 4 + Math.random()*5, vz: (Math.random()-0.5)*12, life: 0.28 });
+          }
+          if (player.dashTimer <= 0) player.isDashing = false;
+      } else if (dx !== 0 || dz !== 0) {
           const len = Math.hypot(dx, dz);
           newX += (dx / len) * player.speed * dt; newZ += (dz / len) * player.speed * dt;
           player.mesh.rotation.y = Math.atan2(dx, dz);
           isMoving = true;
       }
       
-      if (isMoving) {
+      if (isMoving && !player.isDashing) {
           player.walkAnimTimer += dt * 15;
           player.legL.rotation.x = Math.sin(player.walkAnimTimer) * 0.5;
           player.legR.rotation.x = -Math.sin(player.walkAnimTimer) * 0.5;
@@ -1495,7 +1603,7 @@
               newX += ((newX - e.x) / dist) * overlap;
               newZ += ((newZ - e.z) / dist) * overlap;
               
-              if (player.contactTimer <= 0) {
+              if (player.contactTimer <= 0 && player.invulnTimer <= 0 && !player.isDashing) {
                   let touchDmg = Math.max(10, Math.floor(e.dmg * 0.6));
                   if (player.shieldLevel) touchDmg *= (1 - player.shieldLevel);
                   player.hp = Math.max(0, player.hp - touchDmg);
@@ -1538,8 +1646,11 @@
           }
       }
 
-      // Atak Gracza (Auto-atak wyłączony dla zwiększenia poziomu trudności, tylko ręczny)
+      // Atak Gracza (oraz ciągły atak przy przytrzymaniu)
       player.attackTimer -= dt;
+      if (isAttackingPressed && player.attackTimer <= 0 && gameState === 'playing') {
+          performPlayerAttack();
+      }
 
       // Rzut węglem - niezależny cooldown
       if (player.coalLevel > 0) {
@@ -1576,9 +1687,11 @@
               for (let j = 0; j < 16; j++) spawnParticles(aoe.x, aoe.z, new THREE.MeshBasicMaterial({color: 0xff0000}));
               playSound('explosion');
               if (Math.hypot(player.x - aoe.x, player.z - aoe.z) <= aoe.radius + player.radius) {
-                  player.hp -= aoe.dmg;
-                  flashDamageVignette();
-                  spawnParticles(player.x, player.z, mats.blood);
+                  if (player.invulnTimer <= 0 && !player.isDashing) {
+                      player.hp -= aoe.dmg;
+                      flashDamageVignette();
+                      spawnParticles(player.x, player.z, mats.blood);
+                  }
               }
               if (Math.hypot(aoe.x, aoe.z) <= house.radius + aoe.radius) {
                   house.hp -= aoe.dmg;
@@ -1597,6 +1710,23 @@
       }
 
       waveTimer += dt;
+      
+      const isBossWave = (wave === 5 || wave === 10 || wave === 15 || wave === 18 || wave === 20);
+      const bossPresent = enemies.some(e => e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major');
+      
+      // Dynamic Wave Clearing: szybki start kolejnej fali gdy plansza jest czysta
+      if (!isBossWave && !bossPresent && enemies.length === 0 && waveTimer > 2.0 && wave < 20) {
+          const waveBonus = Math.floor((25 - waveTimer) * 12);
+          score += waveBonus;
+          waveTimer = 25; // Natychmiastowe przejście do kolejnej fali!
+          const banner = document.getElementById('wave-event-banner');
+          if (banner) {
+              banner.textContent = `⚡ FALA UKOŃCZONA! SZYBKI START (+${waveBonus} PKT) ⚡`;
+              banner.style.opacity = '1';
+              setTimeout(() => { if (banner) banner.style.opacity = '0'; }, 1500);
+          }
+      }
+
       if (waveTimer >= 25 && wave < 20) { 
           wave++; waveTimer = 0; 
           if (wave === 20) spawnEnemy('final_boss');
@@ -1670,6 +1800,30 @@
           continue;
         }
 
+        // --- STAGGER (OGŁUSZENIE) BOSSA ---
+        if (e.isStaggered) {
+            e.staggerTimer -= dt;
+            e.speed = 0;
+            e.cooldown = 1.0;
+            e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xffff00); });
+            e.mesh.rotation.z = Math.sin(performance.now() * 0.02) * 0.18;
+            if (Math.random() < 0.15) {
+                const star = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0xffff55}));
+                star.scale.set(1.5, 1.5, 1.5);
+                star.position.set(e.x + (Math.random()-0.5)*12, 22 + Math.random()*8, e.z + (Math.random()-0.5)*12);
+                scene.add(star);
+                particles.push({ mesh: star, vx: (Math.random()-0.5)*15, vy: 6 + Math.random()*10, vz: (Math.random()-0.5)*15, life: 0.4 });
+            }
+            if (e.staggerTimer <= 0) {
+                e.isStaggered = false;
+                e.stagger = 0;
+                e.mesh.rotation.z = 0;
+                e.speed = e.enraged ? e.baseSpeed * 1.3 : e.baseSpeed;
+                e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
+            }
+            e.mesh.position.set(e.x, 0, e.z);
+            continue;
+        }
 
         // --- FAZY HP (wściekłość po 50%) ---
         if (!e.phaseTriggered && e.hp <= e.maxHp * 0.5 && (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major')) {
@@ -1917,26 +2071,31 @@
                   spawnSpeechBubble(player.x, player.z, 'ZBIJCIE! 🪓', 1.0);
                   hit = true;
               } else if (p.target === 'player' && Math.hypot(p.x - player.x, p.z - player.z) < player.radius + 4) {
-                  let incomingDmg = p.dmg;
-                  if (player.shieldLevel) incomingDmg *= (1 - player.shieldLevel);
-                  player.hp = Math.max(0, player.hp - incomingDmg);
-                  playSound('playerHit');
-                  flashDamageVignette();
-                  spawnParticles(player.x, player.z, mats.blood); hit = true;
+                  if (player.invulnTimer <= 0 && !player.isDashing) {
+                      let incomingDmg = p.dmg;
+                      if (player.shieldLevel) incomingDmg *= (1 - player.shieldLevel);
+                      player.hp = Math.max(0, player.hp - incomingDmg);
+                      playSound('playerHit');
+                      flashDamageVignette();
+                      spawnParticles(player.x, player.z, mats.blood);
+                  }
+                  hit = true;
               } else if (p.target === 'house' && Math.hypot(p.x, p.z) < house.radius + 4) {
                   let incomingDmg = p.dmg;
                   if (house.armor) incomingDmg *= (1 - house.armor);
                   house.hp -= incomingDmg; house.lastHitTime = performance.now(); spawnParticles(0, 0, mats.houseWood); hit = true;
               }
-              // Butelki Jana Ł - spowalniają gracza przy trafieniu
+              // Butelki Jana Ł - spowalniają gracza przy trafieniu (chyba że wykonuje dash)
               if (p.isBottle && Math.hypot(p.x - player.x, p.z - player.z) < player.radius + 8) {
-                  if (!player.slowed) {
-                      player.slowed = true;
-                      player.baseSpeed = player.speed;
-                      player.speed *= 0.4;
-                      setTimeout(() => { if(player.slowed) { player.speed = player.baseSpeed; player.slowed = false; } }, 2500);
+                  if (player.invulnTimer <= 0 && !player.isDashing) {
+                      if (!player.slowed) {
+                          player.slowed = true;
+                          player.baseSpeed = player.speed;
+                          player.speed *= 0.4;
+                          setTimeout(() => { if(player.slowed) { player.speed = player.baseSpeed; player.slowed = false; } }, 2500);
+                      }
+                      spawnParticles(player.x, player.z, new THREE.MeshStandardMaterial({color: 0x88ccff}));
                   }
-                  spawnParticles(player.x, player.z, new THREE.MeshStandardMaterial({color: 0x88ccff}));
                   hit = true;
               }
           }
@@ -1991,13 +2150,19 @@
           document.getElementById('house-warning').classList.add('hidden');
       }
 
-      if (house.pulseLevel > 0) {
+      // Domek - fala uderzeniowa (Pancerne Cegły)
+      if (house.pulseLevel && house.pulseLevel > 0) {
           house.pulseTimer = (house.pulseTimer || 0) + dt;
           if (house.pulseTimer >= 5.0) {
               house.pulseTimer = 0;
-              const pulseMesh = new THREE.Mesh(new THREE.RingGeometry(1, house.radius + 35, 32), new THREE.MeshBasicMaterial({color: 0xffaa00, side: THREE.DoubleSide, transparent: true, opacity: 0.8}));
-              pulseMesh.rotation.x = Math.PI / 2; pulseMesh.position.y = 1; scene.add(pulseMesh);
-              const dmg = 35 + house.pulseLevel * 20;
+              playSound('parry');
+              const pulseGeo = new THREE.RingGeometry(house.radius, house.radius + 60, 32);
+              const pulseMat = new THREE.MeshBasicMaterial({color: 0xffaa00, side: THREE.DoubleSide, transparent: true, opacity: 0.8});
+              const pulseMesh = new THREE.Mesh(pulseGeo, pulseMat);
+              pulseMesh.rotation.x = Math.PI / 2; pulseMesh.position.y = 1;
+              scene.add(pulseMesh);
+              
+              const dmg = house.pulseLevel * 30;
               enemies.forEach(e => {
                   if (Math.hypot(e.x, e.z) < house.radius + 55) {
                       e.hp -= dmg; e.flashTimer = 0.2;
@@ -2027,6 +2192,21 @@
           enemies.forEach(e => {
               if (e.flashTimer <= 0 && Math.hypot(e.x - fm.mesh.position.x, e.z - fm.mesh.position.z) < e.radius + 6) {
                   let dmgDone = fm.dmg + player.dmg * 0.35;
+                  const isBoss = (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major');
+                  if (isBoss) {
+                      if (e.isStaggered) {
+                          dmgDone = Math.floor(dmgDone * 1.5);
+                      } else {
+                          e.stagger = (e.stagger || 0) + dmgDone * 0.4;
+                          if (e.stagger >= e.maxStagger) {
+                              e.isStaggered = true;
+                              e.staggerTimer = 3.5;
+                              e.stagger = e.maxStagger;
+                              playSound('stagger');
+                              spawnSpeechBubble(e.x, e.z, 'AŁAAA! OGŁUSZENIE! 😵', 2.0);
+                          }
+                      }
+                  }
                   e.hp -= dmgDone; e.flashTimer = 0.18;
                   e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xffffff); });
                   spawnParticles(e.x, e.z, mats.milkMat);
@@ -2044,6 +2224,21 @@
           enemies.forEach(e => {
               if (e.flashTimer <= 0 && Math.hypot(e.x - fn.mesh.position.x, e.z - fn.mesh.position.z) < e.radius + 8) {
                   let dmgDone = fn.dmg + player.dmg * 0.5;
+                  const isBoss = (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major');
+                  if (isBoss) {
+                      if (e.isStaggered) {
+                          dmgDone = Math.floor(dmgDone * 1.5);
+                      } else {
+                          e.stagger = (e.stagger || 0) + dmgDone * 0.4;
+                          if (e.stagger >= e.maxStagger) {
+                              e.isStaggered = true;
+                              e.staggerTimer = 3.5;
+                              e.stagger = e.maxStagger;
+                              playSound('stagger');
+                              spawnSpeechBubble(e.x, e.z, 'AŁAAA! OGŁUSZENIE! 😵', 2.0);
+                          }
+                      }
+                  }
                   e.hp -= dmgDone; e.flashTimer = 0.18;
                   e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x00ffcc); });
                   spawnParticles(e.x, e.z, new THREE.MeshBasicMaterial({color: 0x00ffcc}));
@@ -2091,16 +2286,26 @@
       if (player.hp <= 0 || house.hp <= 0) {
           stopBGM();
           gameState = 'gameover';
-          document.getElementById('mobile-attack-btn').classList.add('hidden');
+          const mControls = document.getElementById('mobile-controls');
+          if (mControls) mControls.classList.add('hidden');
           document.getElementById('hud').classList.add('hidden'); document.getElementById('gameover-screen').classList.remove('hidden');
           document.getElementById('gameover-reason').innerText = (player.hp <= 0) ? "Młodzież bandycka cię ukróciła!" : "Domek drewniany rozwalony całkowicie!";
           document.getElementById('final-stats').innerHTML = `Przetrwane fale: <strong>${wave}</strong><br>Punkty: <strong>${score}</strong>`;
       }
     }
 
+    let hitstopTimer = 0;
     function animate() {
       requestAnimationFrame(animate);
       const now = performance.now(); const dt = Math.min((now - lastTime) / 1000, 0.1); lastTime = now;
+
+      // Hitstop / Micro-freeze dla soczystości uderzeń (Game Feel)
+      if (hitstopTimer > 0) {
+          hitstopTimer -= dt;
+          renderer.render(scene, camera);
+          return;
+      }
+
       update(dt);
 
       // Fluktuacja latarni (płomień)
@@ -2140,6 +2345,49 @@
     }
 
 
+    function performPlayerDash() {
+      if (gameState !== 'playing' || !player || player.dashCooldown > 0 || player.isDashing) return;
+
+      let moveX = 0, moveZ = 0;
+      if (joystick.active) {
+          moveX = joystick.x; moveZ = joystick.y;
+      } else {
+          if (keys['w'] || keys['arrowup']) moveZ -= 1;
+          if (keys['s'] || keys['arrowdown']) moveZ += 1;
+          if (keys['a'] || keys['arrowleft']) moveX -= 1;
+          if (keys['d'] || keys['arrowright']) moveX += 1;
+      }
+
+      const len = Math.hypot(moveX, moveZ);
+      let dirX = 0, dirZ = 0;
+      if (len > 0.05) {
+          dirX = moveX / len;
+          dirZ = moveZ / len;
+          player.mesh.rotation.y = Math.atan2(dirX, dirZ);
+      } else {
+          dirX = Math.sin(player.mesh.rotation.y);
+          dirZ = Math.cos(player.mesh.rotation.y);
+      }
+
+      const dashSpeed = player.speed * 3.2;
+      player.dashVx = dirX * dashSpeed;
+      player.dashVz = dirZ * dashSpeed;
+      player.isDashing = true;
+      player.dashTimer = 0.22;
+      player.dashCooldown = player.dashMaxCooldown || 1.2;
+      player.invulnTimer = 0.26;
+
+      playSound('dash');
+
+      for (let k = 0; k < 7; k++) {
+          const dust = new THREE.Mesh(geos.box, mats.rock);
+          dust.scale.set(2, 2, 2);
+          dust.position.set(player.x + (Math.random()-0.5)*4, 2, player.z + (Math.random()-0.5)*4);
+          scene.add(dust);
+          particles.push({ mesh: dust, vx: (Math.random()-0.5)*20, vy: 5 + Math.random()*8, vz: (Math.random()-0.5)*20, life: 0.35 });
+      }
+    }
+
     function performPlayerAttack() {
       if (gameState !== 'playing' || !player || player.attackTimer > 0) return;
       
@@ -2172,8 +2420,33 @@
                   let finalDmg = player.dmg;
                   if (player.critChance && Math.random() < player.critChance) finalDmg *= 2;
                   if (player.fireLevel) { e.burnTimer = 3.0; e.burnDmg = player.fireLevel * 10; }
+                  
+                  const isBoss = (e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major');
+                  if (isBoss) {
+                      if (e.isStaggered) {
+                          finalDmg = Math.floor(finalDmg * 1.5); // +50% bonus podczas ogłuszenia
+                      } else {
+                          e.stagger = (e.stagger || 0) + finalDmg * 0.7;
+                          if (e.stagger >= e.maxStagger) {
+                              e.isStaggered = true;
+                              e.staggerTimer = 3.5;
+                              e.stagger = e.maxStagger;
+                              playSound('stagger');
+                              spawnSpeechBubble(e.x, e.z, 'AŁAAA! OGŁUSZENIE! 😵', 2.2);
+                              for (let s = 0; s < 10; s++) {
+                                  const star = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0xffff00}));
+                                  star.scale.set(1.8, 1.8, 1.8);
+                                  star.position.set(e.x + (Math.random()-0.5)*10, 24, e.z + (Math.random()-0.5)*10);
+                                  scene.add(star);
+                                  particles.push({ mesh: star, vx: (Math.random()-0.5)*18, vy: 8+Math.random()*12, vz: (Math.random()-0.5)*18, life: 0.5 });
+                              }
+                          }
+                      }
+                  }
+
                   e.hp -= finalDmg; e.flashTimer = 0.1;
                   if (!hitSoundPlayed) { playSound('hit'); hitSoundPlayed = true; }
+                  hitstopTimer = 0.035; // crunchy micro-freeze
                   if (player.lifesteal) player.hp = Math.min(player.maxHp, player.hp + player.lifesteal);
                   e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x550000); });
                   e.x += dirToE.x * player.knockback * (e.knockbackMult !== undefined ? e.knockbackMult : 1.0); 
@@ -2208,7 +2481,17 @@
       }
     }
 
-    window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      const mControls = document.getElementById('mobile-controls');
+      if (mControls && gameState === 'playing') {
+          const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 1024);
+          if (isTouch) mControls.classList.remove('hidden');
+          else mControls.classList.add('hidden');
+      }
+    });
     document.addEventListener('keydown', e => {
       const k = e.key.toLowerCase(); if (keys.hasOwnProperty(k)) keys[k] = true;
       
@@ -2242,25 +2525,53 @@
           }
       }
 
-      if (k === 'enter' || k === ' ' || k === 'spacebar') {
+      if (k === ' ' || k === 'space' || k === 'spacebar' || k === 'shift') {
+          if (gameState === 'playing') {
+              e.preventDefault();
+              performPlayerDash();
+          }
+      }
+      if (k === 'enter') {
           if (gameState === 'playing') performPlayerAttack();
       }
       if ((k === 'p' || k === 'escape') && gameState === 'playing') { gameState = 'paused'; document.getElementById('pause-screen').classList.remove('hidden'); }
       else if ((k === 'p' || k === 'escape') && gameState === 'paused') resumeGame();
     });
     document.addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (keys.hasOwnProperty(k)) keys[k] = false; });
+    
+    let isAttackingPressed = false;
     document.addEventListener('mousedown', e => {
+      if (e.button === 2) {
+          if (gameState === 'playing') {
+              performPlayerDash();
+          }
+          return;
+      }
       if (gameState === 'playing' && e.target.tagName !== 'BUTTON' && !e.target.closest('.bonus-card')) {
+          isAttackingPressed = true;
           performPlayerAttack();
       }
+    });
+    document.addEventListener('mouseup', () => { isAttackingPressed = false; });
+    window.addEventListener('contextmenu', e => {
+        if (gameState === 'playing') {
+            e.preventDefault();
+            performPlayerDash();
+        }
     });
 
     let touchStartX = 0, touchStartY = 0; const bodyEl = document.body;
     bodyEl.addEventListener('touchstart', e => {
-        if(e.target.tagName === 'BUTTON' || e.target.closest('.bonus-card')) return;
+        if(e.target.tagName === 'BUTTON' || e.target.closest('.bonus-card') || e.target.closest('#mobile-controls')) return;
         for(let i=0; i<e.changedTouches.length; i++) {
-            if (e.changedTouches[i].clientX < window.innerWidth / 2) {
-                joystick.active = true; touchStartX = e.changedTouches[i].clientX; touchStartY = e.changedTouches[i].clientY; joystick.x = 0; joystick.y = 0;
+            const touch = e.changedTouches[i];
+            if (touch.clientX < window.innerWidth / 2) {
+                joystick.active = true; touchStartX = touch.clientX; touchStartY = touch.clientY; joystick.x = 0; joystick.y = 0;
+            } else {
+                if (gameState === 'playing') {
+                    isAttackingPressed = true;
+                    performPlayerAttack();
+                }
             }
         }
     }, {passive: false});
@@ -2275,9 +2586,51 @@
     }, {passive: false});
     bodyEl.addEventListener('touchend', e => {
         for(let i=0; i<e.changedTouches.length; i++) {
-            if (e.changedTouches[i].clientX < window.innerWidth / 2 || joystick.active) { joystick.active = false; joystick.x = 0; joystick.y = 0; }
+            if (e.changedTouches[i].clientX < window.innerWidth / 2 || joystick.active) {
+                joystick.active = false; joystick.x = 0; joystick.y = 0;
+            } else {
+                isAttackingPressed = false;
+            }
         }
     });
+
+    // Obsługa przycisków mobilnych:
+    const mAttackBtn = document.getElementById('mobile-attack-btn');
+    if (mAttackBtn) {
+        mAttackBtn.addEventListener('touchstart', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            isAttackingPressed = true;
+            if (gameState === 'playing') performPlayerAttack();
+        }, {passive: false});
+        mAttackBtn.addEventListener('touchend', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            isAttackingPressed = false;
+        }, {passive: false});
+        mAttackBtn.addEventListener('touchcancel', e => {
+            e.preventDefault();
+            isAttackingPressed = false;
+        });
+        mAttackBtn.addEventListener('mousedown', e => {
+            e.preventDefault();
+            isAttackingPressed = true;
+            if (gameState === 'playing') performPlayerAttack();
+        });
+    }
+
+    const mDashBtn = document.getElementById('mobile-dash-btn');
+    if (mDashBtn) {
+        mDashBtn.addEventListener('touchstart', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (gameState === 'playing') performPlayerDash();
+        }, {passive: false});
+        mDashBtn.addEventListener('mousedown', e => {
+            e.preventDefault();
+            if (gameState === 'playing') performPlayerDash();
+        });
+    }
 
     document.getElementById('play-btn').onclick = initGame;
     document.getElementById('restart-btn').onclick = initGame;
