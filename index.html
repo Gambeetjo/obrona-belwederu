@@ -780,7 +780,7 @@
 
     // --- STAN GRY ---
     let gameState = 'start'; let lastTime = 0;
-    const house = { mesh: houseMesh, hp: 9999, maxHp: 9999, radius: 28, lastHitTime: 0, regenRate: 2 };
+    const house = { mesh: houseMesh, hp: 150, maxHp: 150, radius: 28, lastHitTime: 0, regenRate: 2 };
     let player = {}; let enemies = []; let particles = []; let projectiles = []; let pickups = []; let flyingMilks = []; let flyingNitros = [];
     let policeCar = null; let coalTimer = 0;
     let wave = 1; let score = 0; let xp = 0; let level = 1; let xpNeeded = 5; let waveTimer = 0; let pickupTimer = 0;
@@ -795,15 +795,15 @@
       { id: 'range', name: 'Długi Trzonek', desc: 'Większy zasięg ataku.', level: 0, max: 4, minLevel: 1, apply: () => { player.attackRange *= 1.2; updateRangeIndicator(); } },
       { id: 'rate', name: 'Krzepa', desc: 'Atakujesz szybciej.', level: 0, max: 4, minLevel: 1, apply: () => player.attackCooldown = Math.max(0.14, player.attackCooldown - 0.035) },
       { id: 'health', name: 'Gruby Sweter', desc: 'Max HP +30 i leczenie.', level: 0, max: 4, minLevel: 1, apply: () => { player.maxHp += 30; player.hp = player.maxHp; } },
-      { id: 'houseHp', name: 'Cegły', desc: 'Max HP Domku +100 i leczenie.', level: 0, max: 4, minLevel: 1, apply: () => { house.maxHp += 100; house.hp = house.maxHp; } },
+      { id: 'houseHp', name: 'Cegły', desc: 'Max HP Domku +50 i leczenie.', level: 0, max: 4, minLevel: 1, apply: () => { house.maxHp += 50; house.hp = Math.min(house.maxHp, house.hp + 50); updateUI(); } },
       { id: 'regen', name: 'Złota Rączka', desc: 'Lepsza auto-naprawa domku (+5 HP/s).', level: 0, max: 4, minLevel: 1, apply: () => house.regenRate += 5 },
       { id: 'cleave', name: 'Młynek', desc: 'Kulacha rani szerzej.', level: 0, max: 4, minLevel: 1, apply: () => player.attackAngle += Math.PI/6 },
       { id: 'crit', name: 'Warmińska Siła', desc: 'Szansa na podwójne dmg.', level: 0, max: 3, minLevel: 3, apply: () => { player.critChance = (player.critChance || 0) + 0.15; } },
       { id: 'knockback', name: 'Odrzut', desc: 'Odepchnięcie wrogów +10.', level: 0, max: 3, minLevel: 3, apply: () => player.knockback += 10 },
       { id: 'lifesteal', name: 'Pisanie zawiadomień na trójeczke', desc: 'Leczy 2 HP przy ataku.', level: 0, max: 2, minLevel: 5, apply: () => { player.lifesteal = (player.lifesteal || 0) + 2; } },
       { id: 'houseArmor', name: 'Mur wyrzszy od mego', desc: 'Domek dostaje -20% dmg.', level: 0, max: 3, minLevel: 4, apply: () => { house.armor = (house.armor || 0) + 0.20; } },
-      { id: 'flyingMilk', name: 'Latające Mleczko Boże', desc: 'Mleczka krążą dookoła i mocno ranią wrogów (od razu 2 sztuki na 1. poziomie!).', level: 0, max: 4, minLevel: 2, apply: () => { spawnFlyingMilk(2); } },
-      { id: 'flyingNitro', name: 'Butelka Nitro Boża', desc: 'Nitro krąży daleko na obwodzie (od razu 2 sztuki na 1. poziomie!) i wywołuje eksplozje.', level: 0, max: 4, minLevel: 10, apply: () => { spawnFlyingNitro(2); } },
+      { id: 'flyingMilk', name: 'Latające Mleczko Boże', desc: 'Mleczka krążą dookoła i ranią wrogów (zaczynasz od 2 sztuk, potem +1).', level: 0, max: 4, minLevel: 2, apply: () => { spawnFlyingMilk(flyingMilks.length === 0 ? 2 : 1); } },
+      { id: 'flyingNitro', name: 'Butelka Nitro Boża', desc: 'Nitro krąży daleko na obwodzie (zaczynasz od 2 sztuk, potem +1).', level: 0, max: 4, minLevel: 10, apply: () => { spawnFlyingNitro(flyingNitros.length === 0 ? 2 : 1); } },
       { id: 'coal', name: 'Rzut Węglem', desc: 'Automatycznie rzuca węglem we wrogów.', level: 0, max: 4, minLevel: 1, apply: () => { player.coalLevel = (player.coalLevel || 0) + 1; } },
       { id: 'selfRegen', name: 'Zupka Chińska', desc: 'Regeneracja HP co kilka sekund.', level: 0, max: 3, minLevel: 5, apply: () => { player.selfRegenLevel = (player.selfRegenLevel || 0) + 1; } },
       { id: 'rainOfGifts', name: 'Deszcz Darów Bożych', desc: 'Zrzut paczek na skupisko wrogów.', level: 0, max: 3, minLevel: 10, apply: () => { player.rainLevel = (player.rainLevel || 0) + 1; } },
@@ -1171,8 +1171,8 @@
       else if (wave > 1 && rand < 0.4) type = 'thrower';
       else if (wave > 1 && rand < 0.7) type = 'runner';
 
-      // Od 15 fali Latex zastępuje Gimbusa!
-      if (!forceType && wave >= 15 && type === 'normal') {
+      // Od 15 fali / 15 poziomu Latex całkowicie zastępuje Gimbusa!
+      if ((wave >= 15 || level >= 15) && (type === 'normal' || forceType === 'normal')) {
           type = 'latex';
       }
 
