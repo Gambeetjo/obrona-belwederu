@@ -557,7 +557,7 @@
       return {
         mesh: pGroup, arm: armPivot, rangeMesh: rangeMesh, legL: legL, legR: legR,
         x: 0, z: 60, hp: startHp, maxHp: startHp, speed: startSpeed, radius: 7,
-        attackRange: 38, attackAngle: Math.PI / 3, attackCooldown: 0.72, attackTimer: 0,
+        attackRange: 38, attackAngle: Math.PI / 3, attackCooldown: 0.18, attackTimer: 0,
         dmg: 20, knockback: 4.5, isAttacking: false, attackAnimTimer: 0, walkAnimTimer: 0
       };
     }
@@ -1173,7 +1173,7 @@
 
       if (player.isAttacking) {
           player.attackAnimTimer -= dt;
-          if (player.attackAnimTimer > 0) player.arm.rotation.x = Math.sin(player.attackAnimTimer * Math.PI / 0.3) * -Math.PI/1.5;
+          if (player.attackAnimTimer > 0) player.arm.rotation.x = Math.sin((player.attackAnimTimer / 0.10) * Math.PI) * -Math.PI/1.5;
           else { player.isAttacking = false; player.arm.rotation.x = 0; }
       }
 
@@ -1698,14 +1698,14 @@
       if (gameState !== 'playing' || !player || player.attackTimer > 0) return;
       
       player.isAttacking = true; 
-      player.attackAnimTimer = 0.3; 
+      player.attackAnimTimer = 0.10; 
       player.attackTimer = player.attackCooldown;
 
       let hitVector = new THREE.Vector2(0, 1);
-      let closestDist = player.attackRange + 100; let targetEnemy = null;
+      let closestDist = player.attackRange + 10; let targetEnemy = null;
       enemies.forEach(e => {
           const dist = Math.hypot(e.x - player.x, e.z - player.z) - e.radius - player.radius;
-          if (dist < closestDist) { closestDist = dist; targetEnemy = e; }
+          if (dist <= closestDist) { closestDist = dist; targetEnemy = e; }
       });
 
       if (targetEnemy) {
