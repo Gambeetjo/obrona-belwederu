@@ -1162,7 +1162,42 @@
       label.position.y = yOff + h + 3;
       group.add(label);
 
+      // Klonowanie materiałów – każdy wróg ma unikalną instancję materiałów (brak psucia kolorów)
+      group.traverse(child => {
+          if (child.isMesh) {
+              if (Array.isArray(child.material)) {
+                  child.material = child.material.map(m => m ? m.clone() : m);
+              } else if (child.material) {
+                  child.material = child.material.clone();
+              }
+          }
+      });
+
       return group;
+    }
+
+    function setEnemyEmissive(e, hexColor) {
+        if (!e || !e.mesh) return;
+        e.mesh.traverse(child => {
+            if (child.isMesh && child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => { if (m && m.emissive) m.emissive.setHex(hexColor); });
+                } else if (child.material.emissive) {
+                    child.material.emissive.setHex(hexColor);
+                }
+            }
+        });
+    }
+
+    function updateMobileControlsVisibility() {
+        const mControls = document.getElementById('mobile-controls');
+        if (!mControls) return;
+        const isMobileOrTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 1024) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+        if (isMobileOrTouch && gameState === 'playing') {
+            mControls.classList.remove('hidden');
+        } else {
+            mControls.classList.add('hidden');
+        }
     }
 
     function spawnEnemy(forceType = null, customDist = null) {
@@ -1520,10 +1555,6 @@
       wave = 1; score = 0; xp = 0; level = 1; xpNeeded = 3; waveTimer = 0; pickupTimer = 0; coalTimer = 0;
       player.regenTimer = 0; player.rainTimer = 0; 
       finalBossDefeated = false; endingSequence = false;
-      if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-          const mControls = document.getElementById('mobile-controls');
-          if (mControls) mControls.classList.remove('hidden');
-      }
       upgradesPool.forEach(u => u.level = 0); updateUI();
       
       comboCount = 0; comboTimer = 0;
@@ -1533,7 +1564,8 @@
       document.getElementById('boss-hud').classList.add('hidden');
       document.getElementById('boss-name').classList.remove('enraged');
       gameState = 'playing'; lastTime = performance.now();
-      document.getElementById('start-screen').classList.add('hidden'); document.getElementById('gameover-screen').classList.add('hidden'); document.getElementById('pause-screen').classList.add('hidden');
+      updateMobileControlsVisibility();
+      document.getElementById('start-screen').classList.add('hidden'); document.getElementById('gameover-screen').classList.add('hidden'); document.getElementById('pause-screen').classList.add('hidden'); document.getElementById('levelup-screen').classList.add('hidden');
       document.getElementById('hud').classList.remove('hidden');
       spawnOpeningEnemies(1);
     }
@@ -1544,7 +1576,7 @@
 
     function showLevelUpScreen() {
       playSound('levelup');
-      gameState = 'levelup'; document.getElementById('levelup-screen').classList.remove('hidden');
+      gameState = 'levelup'; updateMobileControlsVisibility(); document.getElementById('levelup-screen').classList.remove('hidden');
       const container = document.getElementById('bonus-cards'); container.innerHTML = '';
       let available = upgradesPool.filter(u => u.level < u.max && level >= u.minLevel).sort(() => Math.random() - 0.5).slice(0, 3);
       if (available.length === 0) {
@@ -1562,7 +1594,7 @@
 
     function resumeGame() {
       document.getElementById('levelup-screen').classList.add('hidden'); document.getElementById('pause-screen').classList.add('hidden');
-      gameState = 'playing'; lastTime = performance.now(); updateUI();
+      gameState = 'playing'; lastTime = performance.now(); updateMobileControlsVisibility(); updateUI();
     }
 
     function updateUI() {
@@ -1873,7 +1905,7 @@
         const e = enemies[i];
         if(e.flashTimer > 0) {
             e.flashTimer -= dt;
-            if(e.flashTimer <= 0 && !e.telegraphing) e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
+            if(e.flashTimer <= 0 && !e.telegraphing) setEnemyEmissive(e, 0x000000);
         }
 
         if (e.hp <= 0) {
@@ -1931,11 +1963,11 @@
             e.staggerTimer -= dt;
             e.speed = 0;
             e.cooldown = 1.0;
-            e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xffff00); });
+            setEnemyEmissive(e, 0xffff00);
             e.mesh.rotation.z = Math.sin(performance.now() * 0.02) * 0.18;
             if (Math.random() < 0.15) {
                 const star = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0xffff55}));
-                star.scale.set(1.5, 1.5, 1.5);
+                star.scale.set(1.8, 1.8, 1.8);
                 star.position.set(e.x + (Math.random()-0.5)*12, 22 + Math.random()*8, e.z + (Math.random()-0.5)*12);
                 scene.add(star);
                 particles.push({ mesh: star, vx: (Math.random()-0.5)*15, vy: 6 + Math.random()*10, vz: (Math.random()-0.5)*15, life: 0.4 });
@@ -1945,7 +1977,7 @@
                 e.stagger = 0;
                 e.mesh.rotation.z = 0;
                 e.speed = e.enraged ? e.baseSpeed * 1.3 : e.baseSpeed;
-                e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
+                setEnemyEmissive(e, 0x000000);
             }
             e.mesh.position.set(e.x, 0, e.z);
             continue;
@@ -2005,7 +2037,7 @@
             if (e.telegraphing) {
                 e.telegraphTimer -= dt;
                 e.speed = 0;
-                e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xff2200); });
+                setEnemyEmissive(e, 0xff2200);
                 if (e.telegraphTimer <= 0) {
                     e.telegraphing = false;
                     e.charging = true;
@@ -2013,7 +2045,7 @@
                     const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
                     const chargeSpeed = 250;
                     e.chargeVx = dir.x * chargeSpeed; e.chargeVz = dir.y * chargeSpeed;
-                    e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xffaa00); });
+                    setEnemyEmissive(e, 0xffaa00);
                 }
                 continue;
             } else if (e.charging) {
@@ -2028,14 +2060,14 @@
                     e.charging = false;
                     e.speed = e.enraged ? e.baseSpeed * 1.35 : e.baseSpeed;
                     e.chargeCooldown = e.enraged ? 5 : 8;
-                    e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
+                    setEnemyEmissive(e, 0x000000);
                     spawnParticles(player.x, player.z, mats.blood);
                 }
                 if (e.chargeTimer <= 0) {
                     e.charging = false;
                     e.speed = e.enraged ? e.baseSpeed * 1.35 : e.baseSpeed;
                     e.chargeCooldown = e.enraged ? 5 : 8;
-                    e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x000000); });
+                    setEnemyEmissive(e, 0x000000);
                 }
                 continue;
             } else {
@@ -2334,7 +2366,7 @@
                       }
                   }
                   e.hp -= dmgDone; e.flashTimer = 0.18;
-                  e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0xffffff); });
+                  setEnemyEmissive(e, 0xffffff);
                   spawnParticles(e.x, e.z, mats.milkMat);
               }
           });
@@ -2366,7 +2398,7 @@
                       }
                   }
                   e.hp -= dmgDone; e.flashTimer = 0.18;
-                  e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x00ffcc); });
+                  setEnemyEmissive(e, 0x00ffcc);
                   spawnParticles(e.x, e.z, new THREE.MeshBasicMaterial({color: 0x00ffcc}));
                   playSound('explosion');
                   enemies.forEach(nearby => {
@@ -2412,8 +2444,7 @@
       if (player.hp <= 0 || house.hp <= 0) {
           stopBGM();
           gameState = 'gameover';
-          const mControls = document.getElementById('mobile-controls');
-          if (mControls) mControls.classList.add('hidden');
+          updateMobileControlsVisibility();
           document.getElementById('hud').classList.add('hidden'); document.getElementById('gameover-screen').classList.remove('hidden');
           document.getElementById('gameover-reason').innerText = (player.hp <= 0) ? "Młodzież bandycka cię ukróciła!" : "Domek drewniany rozwalony całkowicie!";
           document.getElementById('final-stats').innerHTML = `Przetrwane fale: <strong>${wave}</strong><br>Punkty: <strong>${score}</strong>`;
@@ -2584,7 +2615,7 @@
                   if (!hitSoundPlayed) { playSound('hit'); hitSoundPlayed = true; }
                   hitstopTimer = 0.035; // crunchy micro-freeze
                   if (player.lifesteal) player.hp = Math.min(player.maxHp, player.hp + player.lifesteal);
-                  e.mesh.children.forEach(c => { if(c.material && c.material.emissive) c.material.emissive.setHex(0x550000); });
+                  setEnemyEmissive(e, 0x550000);
                   e.x += dirToE.x * player.knockback * (e.knockbackMult !== undefined ? e.knockbackMult : 1.0); 
                   e.z += dirToE.y * player.knockback * (e.knockbackMult !== undefined ? e.knockbackMult : 1.0);
                   spawnParticles(e.x, e.z, mats.blood);
@@ -2621,13 +2652,9 @@
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      const mControls = document.getElementById('mobile-controls');
-      if (mControls && gameState === 'playing') {
-          const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 1024);
-          if (isTouch) mControls.classList.remove('hidden');
-          else mControls.classList.add('hidden');
-      }
+      updateMobileControlsVisibility();
     });
+    window.addEventListener('orientationchange', updateMobileControlsVisibility);
     document.addEventListener('keydown', e => {
       const k = e.key.toLowerCase(); if (keys.hasOwnProperty(k)) keys[k] = true;
       
