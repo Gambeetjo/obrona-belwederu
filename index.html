@@ -1074,22 +1074,22 @@
       group.add(body, head, armL, armR);
 
       // Cechy charakterystyczne
-      if (type === 'boss' || type === 'final_boss') {
+      if (type === 'boss') {
           const shirt = new THREE.Mesh(geos.box, mats.whiteShirtMat); shirt.scale.set(w*0.5, h*0.8, d*1.05); shirt.position.set(0, yOff + h*0.1, 0);
           const bowtie = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x333333})); bowtie.scale.set(w*0.4, h*0.1, d*1.1); bowtie.position.set(0, yOff + h*0.4, 0);
           const mustache = new THREE.Mesh(geos.box, mats.grayHairMat); mustache.scale.set(w*0.6, h*0.15, d*0.9); mustache.position.set(0, yOff + h/2 + h*0.15, d*0.45);
-          const hair = new THREE.Mesh(geos.box, type === 'final_boss' ? new THREE.MeshStandardMaterial({color: 0x222222}) : mats.grayHairMat); hair.scale.set(w*0.85, h*0.15, d*0.85); hair.position.set(0, yOff + h + h*0.1, 0);
+          const hair = new THREE.Mesh(geos.box, mats.grayHairMat); hair.scale.set(w*0.85, h*0.15, d*0.85); hair.position.set(0, yOff + h + h*0.1, 0);
           const cigar = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0x5c4033})); cigar.scale.set(0.8, w*0.8, 0.8); cigar.rotation.z = Math.PI/4; cigar.position.set(w/2 + w*0.3, yOff + h*0.1, d*0.5);
           const cigarTip = new THREE.Mesh(geos.box, new THREE.MeshBasicMaterial({color: 0xff3300})); cigarTip.scale.set(0.9, 0.9, 0.9); cigarTip.position.set(w/2 + w*0.6, yOff + h*0.3, d*0.5);
           group.add(shirt, bowtie, mustache, hair, cigar, cigarTip);
-
-          if (type === 'final_boss') {
-              const glasses = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x050505, metalness: 0.95}));
-              glasses.scale.set(w * 0.7, h * 0.12, d * 0.4); glasses.position.set(0, yOff + h/2 + h*0.18, d * 0.45);
-              const camOnShoulder = createCameraMesh(0.6);
-              camOnShoulder.position.set(w/2 + w*0.2, yOff + h*0.3, d*0.2);
-              group.add(glasses, camOnShoulder);
-          }
+      } else if (type === 'final_boss') {
+          // Unikalny wygląd Srradka - czarny garnitur, krawat, czarne krótkie włosy, ciemne okulary, kamera na ramieniu
+          const shirt = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x111122})); shirt.scale.set(w*0.5, h*0.8, d*1.05); shirt.position.set(0, yOff + h*0.1, 0);
+          const tie = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0xaa0000})); tie.scale.set(w*0.15, h*0.5, d*1.08); tie.position.set(0, yOff + h*0.2, 0);
+          const hair = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x0d0d0d})); hair.scale.set(w*0.85, h*0.12, d*0.85); hair.position.set(0, yOff + h + h*0.06, 0);
+          const glasses = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x050505, metalness: 0.95})); glasses.scale.set(w * 0.7, h * 0.12, d * 0.4); glasses.position.set(0, yOff + h/2 + h*0.18, d * 0.45);
+          const camOnShoulder = createCameraMesh(0.65); camOnShoulder.position.set(w/2 + w*0.2, yOff + h*0.3, d*0.2);
+          group.add(shirt, tie, hair, glasses, camOnShoulder);
       } else if (type === 'mexicano') {
           const sombreroBrim = new THREE.Mesh(geos.cylinder, new THREE.MeshStandardMaterial({color: 0xddaa22, roughness: 0.4}));
           sombreroBrim.scale.set(w * 1.2, h * 0.06, d * 1.2); sombreroBrim.position.set(0, yOff + h/2 + h*0.22, 0);
@@ -1139,6 +1139,14 @@
           const peak = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x111111})); peak.scale.set(w*0.85, 0.2, d*0.6); peak.position.set(0, yOff + h/2 + h*0.4, d*0.6);
           const badge = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0xff0000})); badge.scale.set(1,1,1); badge.position.set(0, yOff + h/2 + h*0.45, d*0.45);
           group.add(bag, strap, hatBase, peak, badge);
+      } else if (type === 'bandit') {
+          const hood = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x241622}));
+          hood.scale.set(w*0.95, h*0.32, d*0.95); hood.position.set(0, yOff + h/2 + h*0.28, 0);
+          const mask = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x111111}));
+          mask.scale.set(w*0.72, h*0.13, d*0.86); mask.position.set(0, yOff + h/2 + h*0.08, d*0.36);
+          const projectileInHand = createFecesMesh(0.55);
+          projectileInHand.position.set(w/2 + w*0.3, yOff - h*0.15, d*0.25);
+          group.add(hood, mask, projectileInHand);
       } else if (type === 'tank') {
           const briefcase = new THREE.Mesh(geos.box, new THREE.MeshStandardMaterial({color: 0x111111}));
           briefcase.scale.set(w*0.2, h*0.4, d*0.6); briefcase.position.set(w/2 + w*0.3, yOff - h*0.2, d*0.3); briefcase.castShadow = true;
@@ -1149,7 +1157,7 @@
           group.add(glasses);
       }
 
-      const labelText = type === 'final_boss' ? 'SRRADEK' : (type === 'major' ? 'MAJOR' : (type === 'janol' ? 'JAN Ł' : (type === 'boss' ? 'BARNEJ' : (type === 'mexicano' ? 'MEXICANO' : (type === 'tank' ? 'MOPS' : (type === 'thrower' ? 'LISTONOSZ' : (type === 'runner' ? 'EKOLUDEK' : (type === 'latex' ? 'LATEX' : 'GIMBUS'))))))));
+      const labelText = type === 'final_boss' ? 'SRRADEK' : (type === 'major' ? 'MAJOR' : (type === 'janol' ? 'JAN Ł' : (type === 'boss' ? 'BARNEJ' : (type === 'mexicano' ? 'MEXICANO' : (type === 'tank' ? 'MOPS' : (type === 'thrower' ? 'LISTONOSZ' : (type === 'bandit' ? 'M.BANDYCKA' : (type === 'runner' ? 'EKOLUDEK' : (type === 'latex' ? 'LATEX' : 'GIMBUS')))))))));
       const label = createTextSprite(labelText);
       label.position.y = yOff + h + 3;
       group.add(label);
@@ -1430,6 +1438,16 @@
     }
 
     function spawnAmbulance() {
+        // Natychmiastowe usunięcie wszystkich obecnych wrogów, pocisków, cząsteczek i ataków z pola walki
+        enemies.forEach(e => scene.remove(e.mesh)); enemies = [];
+        particles.forEach(p => scene.remove(p.mesh)); particles = [];
+        projectiles.forEach(p => scene.remove(p.mesh)); projectiles = [];
+        pickups.forEach(p => scene.remove(p.mesh)); pickups = [];
+        flyingMilks.forEach(fm => scene.remove(fm.mesh)); flyingMilks = [];
+        flyingNitros.forEach(fn => scene.remove(fn.mesh)); flyingNitros = [];
+        if (policeCar) { scene.remove(policeCar.mesh); policeCar = null; }
+        aoeAttacks.forEach(a => scene.remove(a.marker)); aoeAttacks = [];
+
         const group = new THREE.Group();
         const scale = 2; // 2x większa
         
@@ -1464,10 +1482,14 @@
         
         group.add(body, cabin, window, stripe, crossH, crossV, w1, w2, light);
 
-        // Karetka przyjeżdża z prawej strony
-        group.position.set(player.x + 500, 0, player.z);
+        // Karetka przyjeżdża prosto z prawej strony (skierowana w lewo - Math.PI)
+        const startX = player.x + 450;
+        const targetX = player.x + 35;
+        const startZ = player.z - 15;
+        group.position.set(startX, 0, startZ);
+        group.rotation.y = Math.PI; // Przód karetki zwrócony w stronę -X (prosto do celu)
         scene.add(group);
-        ambulance = { mesh: group, active: true, step: 0, timer: 0 };
+        ambulance = { mesh: group, active: true, step: 0, timer: 0, startX: startX, targetX: targetX, targetZ: startZ };
     }
 
     // --- LOGIKA GRY ---
@@ -1600,46 +1622,40 @@
       
       if (endingSequence && ambulance) {
           ambulance.timer += dt;
-          const light = ambulance.mesh.children[4];
+          const light = ambulance.mesh.children[8];
           if (light && light.material) {
               if (Math.sin(performance.now() * 0.02) > 0) light.material.color.setHex(0xff0000);
               else light.material.color.setHex(0x0000ff);
           }
           if (ambulance.step === 0) {
-              const targetX = player.x + 35; // parkuje z boku po prawej
-              const targetZ = player.z - 20; // parkuje "nad" graczem (w głębi osi Z)
-              const dx = targetX - ambulance.mesh.position.x;
-              const dz = targetZ - ambulance.mesh.position.z;
-              const dist = Math.hypot(dx, dz);
-              if (dist > 5) {
-                  ambulance.mesh.position.x += (dx / dist) * 120 * dt;
-                  ambulance.mesh.position.z += (dz / dist) * 120 * dt;
-                  ambulance.mesh.rotation.y = Math.atan2(-dz, dx);
+              if (ambulance.mesh.position.x > ambulance.targetX) {
+                  ambulance.mesh.position.x -= 140 * dt;
               } else {
+                  ambulance.mesh.position.x = ambulance.targetX;
                   ambulance.step = 1; ambulance.timer = 0;
                   ambulance.label1 = createTextSprite("DO CHOROSZCZY!");
-                  ambulance.label1.position.set(ambulance.mesh.position.x, 15, ambulance.mesh.position.z);
+                  ambulance.label1.position.set(ambulance.mesh.position.x, 18, ambulance.mesh.position.z);
                   scene.add(ambulance.label1);
                   ambulance.label2 = createTextSprite("NA BADANIA?");
-                  ambulance.label2.position.set(player.x, 15, player.z);
+                  ambulance.label2.position.set(player.x, 18, player.z);
                   scene.add(ambulance.label2);
               }
-          } else if (ambulance.step === 1 && ambulance.timer > 3) {
+          } else if (ambulance.step === 1 && ambulance.timer > 2.5) {
               ambulance.step = 2; ambulance.timer = 0;
               scene.remove(ambulance.label2);
               scene.remove(ambulance.label1);
               ambulance.label3 = createTextSprite("NA STALE!");
-              ambulance.label3.position.set(ambulance.mesh.position.x, 15, ambulance.mesh.position.z);
+              ambulance.label3.position.set(ambulance.mesh.position.x, 18, ambulance.mesh.position.z);
               scene.add(ambulance.label3);
-          } else if (ambulance.step === 2 && ambulance.timer > 3) {
+          } else if (ambulance.step === 2 && ambulance.timer > 2.5) {
               ambulance.step = 3; ambulance.timer = 0;
               scene.remove(ambulance.label3);
               if (player.mesh) player.mesh.visible = false;
               if (player.rangeMesh) player.rangeMesh.visible = false;
           } else if (ambulance.step === 3) {
-              ambulance.mesh.position.x += Math.sin(ambulance.mesh.rotation.y) * 100 * dt;
-              ambulance.mesh.position.z -= Math.cos(ambulance.mesh.rotation.y) * 100 * dt;
-              if (Math.hypot(ambulance.mesh.position.x, ambulance.mesh.position.z) > 400) {
+              // Odjeżdża prosto dalej w tym samym kierunku wzdłuż osi X!
+              ambulance.mesh.position.x -= 160 * dt;
+              if (ambulance.mesh.position.x < player.x - 450) {
                   ambulance.step = 4;
               }
           } else if (ambulance.step === 4) {
