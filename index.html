@@ -66,6 +66,7 @@
       width: 220px; background: #234553; border: 4px solid var(--cream); padding: 15px;
       color: var(--cream); cursor: pointer; text-align: left; box-shadow: 4px 4px 0 #000;
     }
+    .bonus-card.legendary { border-color: #ffd75a; background: #493517; box-shadow: 0 0 18px #ffbf4066; }
     .bonus-card:hover { background: #356171; transform: translateY(-5px); }
     .bonus-card strong { color: var(--gold); display: block; margin-bottom: 10px; font-size: 16px; }
     .bonus-card small { display: block; margin-bottom: 5px; color: #aaa; }
@@ -1567,6 +1568,7 @@
     }
 
     function spawnAmbulance() {
+      clearNerko();
         // Natychmiastowe usunięcie wszystkich obecnych wrogów, pocisków, cząsteczek i ataków z pola walki
         enemies.forEach(e => removeFromScene(e.mesh)); enemies = [];
         particles.forEach(p => removeFromScene(p.mesh)); particles = [];
@@ -1631,6 +1633,7 @@
     }
 
     function initGame() {
+      clearNerko(); nerkoUpgrade.level = 0;
       startBGM();
       enemies.forEach(e => removeFromScene(e.mesh)); enemies = [];
       particles.forEach(p => removeFromScene(p.mesh)); particles = [];
@@ -1683,6 +1686,72 @@
       if (pendingRewards && gameState === 'playing') showLevelUpScreen();
     }
 
+    let nerko = null;
+    function clearNerko() {
+      if (nerko) removeFromScene(nerko.mesh);
+      nerko = null;
+    }
+    function spawnNerko() {
+      if (nerko) return;
+      const mesh = new THREE.Group();
+      const tan = new THREE.MeshStandardMaterial({color: 0xb98246});
+      const black = new THREE.MeshStandardMaterial({color: 0x24201c});
+      const collar = new THREE.MeshStandardMaterial({color: 0xc52f35});
+      function box(material, size, position) {
+        const part = new THREE.Mesh(geos.box, material);
+        part.scale.set(...size); part.position.set(...position); part.castShadow = true; mesh.add(part); return part;
+      }
+      box(tan, [6,6,13], [0,7,0]);
+      box(black, [6.2,3,9], [0,9,-1]); // German shepherd saddle.
+      box(tan, [5,6,5], [0,11,7]);
+      box(black, [3.5,2.5,4], [0,10,10]);
+      box(collar, [5.5,1.2,5.5], [0,8.6,6]);
+      for (const x of [-1.7,1.7]) {
+        const ear = new THREE.Mesh(new THREE.ConeGeometry(1.4,5,4), black);
+        ear.position.set(x,16,6.5); mesh.add(ear);
+        box(mats.window, [0.6,0.7,0.4], [x,12,9.6]);
+      }
+      const legs = [-2,2].flatMap(x => [-4,4].map(z => box(tan,[1.8,5,2],[x,3,z])));
+      const tail = box(black,[1.5,1.5,8],[0,8,-9]); tail.rotation.x = -0.35;
+      const label = createTextSprite('NERKO'); label.position.y=21; mesh.add(label);
+      mesh.position.set(player.x+16,0,player.z); scene.add(mesh);
+      nerko = {mesh,legs,tail,x:player.x+16,z:player.z,angle:0,step:0,cooldown:0,target:null};
+      announce('LEGENDARNY TOWARZYSZ: PIESEK NERKO!');
+    }
+    function updateNerko(dt) {
+      if (!nerko) return;
+      const n=nerko; n.cooldown=Math.max(0,n.cooldown-dt);
+      if (!n.target || n.target.hp <= 0 || !enemies.includes(n.target) || !isRanged(n.target)) {
+        n.target = enemies.filter(e => e.hp>0 && isRanged(e)).reduce((best,e) => !best || Math.hypot(e.x-n.x,e.z-n.z)<Math.hypot(best.x-n.x,best.z-n.z) ? e : best, null);
+      }
+      n.angle += dt * 1.8;
+      const tx=n.target ? n.target.x : player.x+Math.cos(n.angle)*26;
+      const tz=n.target ? n.target.z : player.z+Math.sin(n.angle)*26;
+      const dx=tx-n.x,dz=tz-n.z,dist=Math.hypot(dx,dz);
+      const stop=n.target ? n.target.radius+7 : 1;
+      const travel=Math.min(Math.max(0,dist-stop),210*dt);
+      if (dist>0.001 && travel>0) {
+        n.x+=dx/dist*travel;n.z+=dz/dist*travel;n.mesh.rotation.y=Math.atan2(dx,dz);n.step+=dt*18;
+      }
+      // The companion follows the same circular obstacle boundaries as the player.
+      for (const obstacle of obstacles) {
+        const ox=n.x-obstacle.x,oz=n.z-obstacle.z,d=Math.hypot(ox,oz),min=obstacle.radius+4;
+        if (d<min && d>0.001) {n.x=obstacle.x+ox/d*min;n.z=obstacle.z+oz/d*min;}
+      }
+      n.mesh.position.set(n.x,travel>0 ? Math.abs(Math.sin(n.step))*1.2 : 0,n.z);
+      n.legs.forEach((leg,i)=>leg.rotation.x=travel>0 ? Math.sin(n.step+(i===0||i===3?0:Math.PI))*0.55 : 0);
+      n.tail.rotation.y=Math.sin(gameTime*8)*0.35;
+      if (n.target && Math.hypot(n.target.x-n.x,n.target.z-n.z)<=stop+1 && n.cooldown<=0) {
+        n.mesh.rotation.y=Math.atan2(n.target.x-n.x,n.target.z-n.z);
+        n.target.hp-=player.dmg*0.5;
+        n.target.flashTimer=0.12;setEnemyEmissive(n.target,0x775500);
+        spawnParticles(n.target.x,n.target.z,mats.blood);
+        n.cooldown=0.65;
+      }
+    }
+    const nerkoUpgrade = {id:'nerko',name:'🐕 Piesek Nerko',legendary:true,level:0,max:1,
+      desc:'LEGENDARNY · Owczarek poluje na jednego Listonosza lub M. Bandycką naraz. Ugryzienie co 0,65 s: 50% aktualnych obrażeń kulachy.',apply:spawnNerko};
+
     function showLevelUpScreen() {
       playSound('levelup');
       resetInput(); gameState = 'levelup'; updateMobileControlsVisibility(); document.getElementById('levelup-screen').classList.remove('hidden');
@@ -1690,6 +1759,7 @@
       let available = upgradesPool.filter(u => u.level < u.max && level >= u.minLevel && (u.id !== 'explosiveCoal' || player.coalLevel > 0));
       for (let i = available.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [available[i], available[j]] = [available[j], available[i]]; }
       available = available.slice(0, 3);
+      if (wave >= 15 && !nerko && nerkoUpgrade.level === 0 && Math.random() < 0.25) available = [nerkoUpgrade, ...available.slice(0,2)];
       if (available.length === 0) {
           const card = document.createElement('div'); card.className = 'bonus-card';
           card.innerHTML = `<strong>Kromka Chleba</strong><small>Leczy 50 HP.</small>`;
@@ -1698,6 +1768,7 @@
       }
       available.forEach(bonus => {
         const card = document.createElement('div'); card.className = 'bonus-card';
+        if (bonus.legendary) card.classList.add('legendary');
         card.innerHTML = `<strong>${bonus.name} (Lvl ${bonus.level+1}/${bonus.max})</strong><small>${bonus.desc}</small>`;
         card.onclick = () => { bonus.level++; bonus.apply(); resumeGame();
           if ((bonus.id === 'coal' || bonus.id === 'explosiveCoal') && player.coalLevel >= 4 && player.explosiveCoal) announce('EWOLUCJA: WĘGIEL Z ODŁAMKAMI!');
@@ -2029,6 +2100,8 @@
       if (wave >= 10) spawnChance *= 1.4;
       if (wave >= 15) spawnChance *= 1.6;
       if (!stopSpawn && wave < 20 && Math.random() < spawnChance) spawnEnemy(waveEvent === 'post' ? (Math.random() < 0.25 ? 'tank' : 'thrower') : waveEvent === 'rush' ? (Math.random() < 0.7 ? 'runner' : 'normal') : null);
+
+      updateNerko(dt);
 
       // Aktualizacja wrogów
       for (let i = enemies.length - 1; i >= 0; i--) {

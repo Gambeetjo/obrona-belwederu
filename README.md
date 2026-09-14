@@ -37,3 +37,7 @@ Testy obejmują działanie ulepszeń, obrażenia i obronę, podejście wrogów, 
 ## Łagodniejszy początek
 
 Fale 1–3 zaczynają się od 3, 3 i 4 przeciwników; dodatkowi wrogowie pojawiają się o 35% rzadziej (fala 4: o 15%). Fale specjalne zaczynają się od fali 6. Sam dotyk zwykłego wroga nie rani: atak wręcz ma 0,32 s zamachu i ponownie sprawdza zasięg. Listonosz i Młodzież Bandycka ranią przy dotyku co najwyżej raz na 0,75 s. Od fali 16 Listonosza zastępuje Młodzież Bandycka z podwójnym HP i obrażeniami, przy tej samej prędkości i częstotliwości strzałów. Gimbus daje 1 XP, Latex 3 XP, Listonosz 3 XP, a Młodzież Bandycka 7,5 XP.
+
+## Legendarny Piesek Nerko
+
+Od fali 15 każdy wybór ulepszenia ma 25% szansy na złotą kartę Pieska Nerko (zastępuje jedną ze zwykłych kart). Można go zdobyć tylko raz w rozgrywce. Owczarek niemiecki ściga najbliższego żywego Listonosza lub Młodzież Bandycką i utrzymuje cel do jego śmierci. Gryzie jednego wroga co 0,65 s, zadając połowę aktualnych bazowych obrażeń Konona, bez krytyków i efektów kulachy. Nie otrzymuje obrażeń; bez celu biega wokół gracza. Restart usuwa towarzysza.
