@@ -832,6 +832,7 @@
     }
     let gameTime = 0, pendingRewards = 0, resultSaved = false, waveEvent = null;
     const bossTypes = new Set(['mexicano', 'boss', 'janol', 'major', 'final_boss']);
+    function isRanged(e) { return e.type === 'thrower' || e.type === 'bandit'; }
     function isBoss(e) { return bossTypes.has(e.type); }
     function announce(text) {
       const el = document.getElementById('wave-event-banner');
@@ -1128,6 +1129,16 @@
         return group;
     }
 
+    function createFecesMesh(scale = 1) {
+      const group = new THREE.Group();
+      for (let i = 0; i < 3; i++) {
+        const lump = new THREE.Mesh(geos.rock, mats.packageMat);
+        lump.scale.set((3-i*0.65)*scale, 1.5*scale, (2.5-i*0.5)*scale);
+        lump.position.y = (1+i*1.5)*scale; group.add(lump);
+      }
+      return group;
+    }
+
     function createEnemyMesh(type) {
       const group = new THREE.Group();
       let bodyMat, headMat = mats.skinTone;
@@ -1138,6 +1149,7 @@
       else if (type === 'mexicano') { bodyMat = new THREE.MeshStandardMaterial({color: 0xddaa22}); w = 14; h = 20; d = 14; yOff = 10; }
       else if (type === 'major') { bodyMat = new THREE.MeshStandardMaterial({color: 0x3b5323}); w = 18; h = 24; d = 18; yOff = 12; }
       else if (type === 'tank') { bodyMat = mats.enemyMops; w = 8; h = 11; d = 8; yOff = 5.5; }
+      else if (type === 'bandit') { bodyMat = mats.darkShirt; w = 6; h = 10; d = 6; yOff = 5; }
       else if (type === 'thrower') { bodyMat = mats.enemyListonosz; w = 5; h = 8; d = 5; yOff = 4.0; }
       else if (type === 'runner') { bodyMat = mats.enemyRunner; w = 4; h = 10; d = 4; yOff = 5.0; }
       else if (type === 'latex') { bodyMat = mats.latexMat; w = 5.5; h = 9.5; d = 4.5; yOff = 4.75; }
@@ -1297,6 +1309,7 @@
           type = 'latex';
       }
 
+      if (wave > 15 && type === 'thrower') type = 'bandit';
       const mesh = createEnemyMesh(type);
       mesh.position.set(x, 0, z); scene.add(mesh);
       
@@ -1310,7 +1323,7 @@
       else if (type === 'major') { hp = 7500; speed = 54; dmg = 65; range = 12; }
       else if (type === 'final_boss') { hp = 12000; speed = 46; dmg = 85; range = 20; }
       else if (type === 'tank') { hp *= 4; speed = 22; dmg = 25; }
-      else if (type === 'thrower') { hp *= 1.3; speed = 32; range = 75; dmg = 10; }
+      else if (type === 'thrower' || type === 'bandit') { hp *= type === 'bandit' ? 2.6 : 1.3; speed = 32; range = 75; dmg = type === 'bandit' ? 20 : 10; }
       else if (type === 'runner') { hp = 10; speed = 64; dmg = 5; }
       else if (type === 'latex') { hp *= 2.5; speed = 42; dmg = 22; range = 8; }
       
@@ -1322,7 +1335,7 @@
       }
       
       let target = 'player';
-      if (type === 'thrower' || type === 'runner') target = 'house';
+      if (type === 'thrower' || type === 'bandit' || type === 'runner') target = 'house';
       else if (type === 'tank') target = 'player';
       else if (type === 'latex') target = (Math.random() < 0.6 || Math.hypot(player.x - x, player.z - z) < 200) ? 'player' : 'house';
       
@@ -1340,9 +1353,9 @@
       if (endingSequence) return;
       const isBossWave = (w === 5 || w === 10 || w === 15 || w === 18 || w === 20);
       if (isBossWave) return;
-      waveEvent = w >= 3 && !isBossWave ? (w % 3 === 0 ? 'post' : w % 3 === 1 ? 'rush' : null) : null;
+      waveEvent = w >= 6 && !isBossWave ? (w % 3 === 0 ? 'post' : w % 3 === 1 ? 'rush' : null) : null;
       if (waveEvent) announce(waveEvent === 'post' ? '✉ OBLĘŻENIE POCZTY — atak z dwóch stron!' : '⚡ SPRINT EKOLUDKÓW — broń domu!');
-      const count = (w === 1) ? 5 : Math.min(8, 3 + Math.floor(w * 0.8));
+      const count = w <= 3 ? [0, 3, 3, 4][w] : Math.min(8, 3 + Math.floor(w * 0.8));
       for (let i = 0; i < count; i++) {
         const dist = (w === 1) ? (130 + Math.random() * 25) : (150 + Math.random() * 35);
         spawnEnemy(waveEvent === 'post' ? (i % 3 === 0 ? 'tank' : 'thrower') : waveEvent === 'rush' ? 'runner' : null, dist);
@@ -1874,14 +1887,14 @@
               newX += ((newX - e.x) / dist) * overlap;
               newZ += ((newZ - e.z) / dist) * overlap;
               
-              if (player.contactTimer <= 0 && player.invulnTimer <= 0 && !player.isDashing) {
-                  let touchDmg = Math.max(10, Math.floor(e.dmg * 0.6));
+              if (isRanged(e) && player.contactTimer <= 0 && player.invulnTimer <= 0 && !player.isDashing) {
+                  let touchDmg = e.dmg;
 
                   damagePlayer(touchDmg);
                   playSound('playerHit');
                   flashDamageVignette();
                   spawnParticles(player.x, player.z, mats.blood);
-                  player.contactTimer = 0.3;
+                  player.contactTimer = 0.75;
               }
           }
       }
@@ -2011,6 +2024,8 @@
       
       let stopSpawn = enemies.some(e => e.type === 'boss' || e.type === 'final_boss' || e.type === 'janol' || e.type === 'mexicano' || e.type === 'major') || finalBossDefeated;
       let spawnChance = dt / Math.max(0.35, 1.35 - wave * 0.05);
+      if (wave <= 3) spawnChance *= 0.65;
+      else if (wave <= 4) spawnChance *= 0.85;
       if (wave >= 10) spawnChance *= 1.4;
       if (wave >= 15) spawnChance *= 1.6;
       if (!stopSpawn && wave < 20 && Math.random() < spawnChance) spawnEnemy(waveEvent === 'post' ? (Math.random() < 0.25 ? 'tank' : 'thrower') : waveEvent === 'rush' ? (Math.random() < 0.7 ? 'runner' : 'normal') : null);
@@ -2033,7 +2048,8 @@
           if (e.type === 'runner') earnedXp = 2; // Ekoludek
           else if (e.type === 'thrower') earnedXp = 3; // Listonosz
           else if (e.type === 'tank') earnedXp = 4; // Mops
-          else if (e.type === 'latex') earnedXp = 5; // Latex
+          else if (e.type === 'latex') earnedXp = 3;
+          else if (e.type === 'bandit') earnedXp = 7.5; // Latex
 
           // Upuszczanie apteczek / bonusu przy zabiciu
           if (isBossType) {
@@ -2073,6 +2089,23 @@
               checkLevelUp();
           }
           continue;
+        }
+
+        if (e.meleeWindup > 0) {
+            if (e.isStaggered) { e.meleeWindup = 0; }
+            else {
+                e.meleeWindup -= dt;
+                e.mesh.rotation.x = -0.25 * Math.sin(Math.PI * Math.max(0, e.meleeWindup) / 0.32);
+                if (e.meleeWindup <= 0) {
+                    const target = e.meleeTarget === 'player' ? player : { x: 0, z: 0, radius: house.radius };
+                    if (Math.hypot(target.x-e.x, target.z-e.z) <= e.radius + target.radius + 6) {
+                        if (e.meleeTarget === 'player') { if (damagePlayer(e.dmg)) playSound('playerHit'); }
+                        else damageHouse(e.dmg);
+                    }
+                    e.mesh.rotation.x = 0;
+                }
+                continue;
+            }
         }
 
         // --- STAGGER (OGŁUSZENIE) BOSSA ---
@@ -2234,7 +2267,7 @@
         if (e.type === 'normal' || e.type === 'latex') {
             if (Math.hypot(player.x - e.x, player.z - e.z) < 160) e.target = 'player';
             else e.target = 'house';
-        } else if (e.type === 'runner' || e.type === 'thrower') {
+        } else if (e.type === 'runner' || isRanged(e)) {
             e.target = 'house';
         } else if (e.type === 'tank') {
             e.target = 'player';
@@ -2257,7 +2290,7 @@
         }
 
         let targetRadius = e.target === 'player' ? player.radius : house.radius;
-        if (dist - targetRadius - e.radius > (e.type === 'thrower' ? e.attackRange : 5)) {
+        if (dist - targetRadius - e.radius > (isRanged(e) ? e.attackRange : 5)) {
             let nx = e.x + Math.sin(angle) * e.speed * dt; let nz = e.z + Math.cos(angle) * e.speed * dt;
             const hDist = Math.hypot(nx, nz);
             if (hDist < house.radius + e.radius) {
@@ -2272,14 +2305,14 @@
                 nx += ((nx - player.x) / pDist) * overlap;
                 nz += ((nz - player.z) / pDist) * overlap;
                 
-                if (player.contactTimer <= 0) {
-                    let touchDmg = Math.max(10, Math.floor(e.dmg * 0.6));
+                if (isRanged(e) && player.contactTimer <= 0 && player.invulnTimer <= 0 && !player.isDashing) {
+                    let touchDmg = e.dmg;
 
                     damagePlayer(touchDmg);
                     playSound('playerHit');
                     flashDamageVignette();
                     spawnParticles(player.x, player.z, mats.blood);
-                    player.contactTimer = 0.3;
+                    player.contactTimer = 0.75;
                 }
             }
             
@@ -2288,21 +2321,15 @@
         } else {
             e.cooldown -= dt;
             if (e.cooldown <= 0) {
-                if (e.type === 'thrower') {
+                if (isRanged(e)) {
                     e.cooldown = 4.5; e.lungeTimer = 0.2;
-                    const pMesh = new THREE.Mesh(geos.box, mats.packageMat); pMesh.scale.set(3,3,3); scene.add(pMesh);
+                    const pMesh = e.type === 'bandit' ? createFecesMesh() : new THREE.Mesh(geos.box, mats.packageMat); if (e.type !== 'bandit') pMesh.scale.set(3,3,3); scene.add(pMesh);
                     const dir = new THREE.Vector2(tx - e.x, tz - e.z).normalize();
-                    projectiles.push({ mesh: pMesh, x: e.x, z: e.z, vx: dir.x*45, vz: dir.y*45, dmg: 10, target: e.target, life: 3.5 });
+                    projectiles.push({ mesh: pMesh, x: e.x, z: e.z, vx: dir.x*45, vz: dir.y*45, dmg: e.dmg, target: e.target, life: 3.5 });
                 } else {
                     e.cooldown = 0.85; e.lungeTimer = 0.2;
-                    // Obrażenia bezpośrednie zadawane TYLKO w prawdziwym zwarciu (fizyczna bliskość)
-                    const realDist = Math.hypot(tx - e.x, tz - e.z);
-                    if (realDist <= e.radius + targetRadius + 6) {
-                        let dealtDmg = e.dmg;
+                    e.meleeWindup = 0.32; e.meleeTarget = e.target;
 
-                        if (e.target === 'player') { damagePlayer(dealtDmg); playSound('playerHit'); flashDamageVignette(); }
-                        else { damageHouse(dealtDmg); }
-                    }
                 }
             }
         }

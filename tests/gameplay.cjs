@@ -16,6 +16,11 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       function check(name,condition) { if (!condition) throw new Error(name); results.push(name); }
       function fresh() { initGame(); enemies.forEach(e=>removeFromScene(e.mesh)); enemies=[]; Math.random=()=>0.99; }
       function enemy(type='normal',x=player.x+45,z=player.z) { spawnEnemy(type); const e=enemies.at(-1); e.x=x;e.z=z;e.mesh.position.set(x,0,z); return e; }
+      fresh(); const passer=enemy('normal',player.x+12);const initialHp=player.hp;update(0.01);check('Touching ordinary enemy does not damage player',player.hp===initialHp);player.x-=90;for(let i=0;i<8;i++)update(0.05);check('Leaving melee windup avoids hit',player.hp===initialHp);
+      fresh();enemy('thrower',player.x+12);update(0.01);check('Ranged enemy still damages on contact',player.hp===90);
+      fresh();wave=15;enemy('thrower');check('Postman remains on wave 15',enemies.at(-1).type==='thrower');fresh();wave=16;const bandit=enemy('thrower');check('Postman evolves after wave 15',bandit.type==='bandit'&&bandit.dmg===20&&bandit.hp===2.6*Math.floor(20+wave*5+Math.pow(wave-8,2)*3));
+      xpNeeded=100;bandit.hp=0;update(0.01);check('Bandit grants 7.5 XP',xp===7.5);fresh();xpNeeded=100;enemy('latex').hp=0;update(0.01);check('Latex grants 3 XP',xp===3);
+      initGame();check('Opening wave has three enemies',enemies.length===3);
       fresh(); player.coalLevel=4; enemy('tank',player.x+120).speed=0; for(let i=0;i<12;i++)update(0.1);
       check('Coal upgrade fires a projectile', Number.isFinite(player.coalTimer) && projectiles.some(p=>p.isCoal));
       fresh(); const burned=enemy('tank'); player.fireLevel=2; performPlayerAttack(); const hp=burned.hp; update(0.1);
@@ -37,7 +42,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       fresh();const target=enemy('mexicano',player.x+60);const bottle=createZubrCanMesh();scene.add(bottle);projectiles.push({mesh:bottle,x:player.x+20,z:player.z,vx:-50,vz:0,dmg:30,life:2,target:'player'});performPlayerAttack();check('Parry reflects instead of deleting',projectiles.length===1&&projectiles[0].reflected&&projectiles[0].dmg===60);
       for(let i=0;i<10;i++)update(0.03);check('Reflected projectile builds boss stagger',target.stagger>0);
       fresh();spawnFlyingMilk(5);player.shieldLevel=0.25;const incoming=createZubrCanMesh();scene.add(incoming);projectiles.push({mesh:incoming,x:player.x+10,z:player.z,vx:0,vz:0,dmg:30,life:2,target:'player'});update(0.01);check('Milk evolution intercepts projectile',player.hp===100&&player.milkShieldTimer>0&&!projectiles.length);
-      fresh();wave=3;spawnOpeningEnemies(3);check('Post wave has two-sided composition',waveEvent==='post'&&enemies.some(e=>e.type==='thrower')&&enemies.some(e=>e.type==='tank'));
+      fresh();wave=6;spawnOpeningEnemies(6);check('Post wave has two-sided composition',waveEvent==='post'&&enemies.some(e=>e.type==='thrower')&&enemies.some(e=>e.type==='tank'));
       fresh();wave=20;const final=enemy('final_boss');final.hp=0;update(0.01);check('Final boss starts ending without upgrade screen',endingSequence&&ambulance&&gameState==='playing');ambulance.step=4;update(0.01);check('Victory saves result',gameState==='gameover'&&resultSaved&&JSON.parse(localStorage.getItem('belweder-scores')).some(r=>r.won));
       fresh();for(let n=0;n<3;n++){renderer.render(scene,camera);initGame();collectResources();}renderer.render(scene,camera);const count=renderer.info.memory.geometries;for(let n=0;n<5;n++){initGame();renderer.render(scene,camera);collectResources();}renderer.render(scene,camera);check('Restart geometry allocation stays bounded',renderer.info.memory.geometries<=count+2);
       return results;

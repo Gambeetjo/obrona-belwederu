@@ -33,3 +33,7 @@ node tests/gameplay.cjs
 Można wskazać własną lokalizację Playwright zmienną `PLAYWRIGHT_MODULE`. Zrzut testowego widoku zapisuje się w `work/mobile.png`.
 
 Testy obejmują działanie ulepszeń, obrażenia i obronę, podejście wrogów, fale bossów, kolejkę awansów, restart, pauzę instrukcji, odbijanie, ewolucje, zapis zwycięstwa, stabilność liczby geometrii i niezależność dotyku. Układ mobilny sprawdzono dodatkowo w emulacji Chrome 390×844. Nie zastępuje to testu wydajności na fizycznym telefonie ani pełnego strojenia balansu przez rozgrywkę.
+
+## Łagodniejszy początek
+
+Fale 1–3 zaczynają się od 3, 3 i 4 przeciwników; dodatkowi wrogowie pojawiają się o 35% rzadziej (fala 4: o 15%). Fale specjalne zaczynają się od fali 6. Sam dotyk zwykłego wroga nie rani: atak wręcz ma 0,32 s zamachu i ponownie sprawdza zasięg. Listonosz i Młodzież Bandycka ranią przy dotyku co najwyżej raz na 0,75 s. Od fali 16 Listonosza zastępuje Młodzież Bandycka z podwójnym HP i obrażeniami, przy tej samej prędkości i częstotliwości strzałów. Gimbus daje 1 XP, Latex 3 XP, Listonosz 3 XP, a Młodzież Bandycka 7,5 XP.
