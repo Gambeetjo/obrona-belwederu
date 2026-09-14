@@ -1362,9 +1362,11 @@
       let radius = (type === 'boss' || type === 'major' || type === 'janol' || type === 'mexicano') ? 24 : (type === 'final_boss' ? 48 : (type === 'tank' ? 10 : 6));
       let kbMult = isBoss ? 0.0 : 1.0; // NA BOSSÓW NIE DZIAŁA ODRZUT!
       
+      if (isBoss) { hp = Math.round(hp * 1.35); speed *= 1.25; }
       let baseSpeed = speed;
       let maxStag = (type === 'mexicano' ? 250 : (type === 'boss' ? 400 : (type === 'janol' ? 550 : (type === 'major' ? 800 : (type === 'final_boss' ? 1200 : 100)))));
-      enemies.push({ mesh, type, x, z, hp, maxHp: hp, speed, baseSpeed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult, enraged: false, chargeCooldown: 9, chargeTimer: 0, charging: false, telegraphing: false, telegraphTimer: 0, chargeVx: 0, chargeVz: 0, bottleSlowCooldown: 5, mexicanoCanTimer: 3, majorNitroTimer: 4, phaseTriggered: false, stagger: 0, maxStagger: maxStag, isStaggered: false, staggerTimer: 0 });
+      if (isBoss) maxStag = Math.round(maxStag * 1.5);
+      enemies.push({ staggerImmuneUntil: 0, mesh, type, x, z, hp, maxHp: hp, speed, baseSpeed, dmg, attackRange: range, radius, cooldown: 0, flashTimer: 0, bobTimer: Math.random()*10, lungeTimer: 0, target, aoeCooldown: 6, knockbackMult: kbMult, enraged: false, chargeCooldown: 9, chargeTimer: 0, charging: false, telegraphing: false, telegraphTimer: 0, chargeVx: 0, chargeVz: 0, bottleSlowCooldown: 5, mexicanoCanTimer: 3, majorNitroTimer: 4, phaseTriggered: false, stagger: 0, maxStagger: maxStag, isStaggered: false, staggerTimer: 0 });
       showBossIntro(type, x, z);
     }
 
@@ -1373,11 +1375,12 @@
       const isBossWave = (w === 5 || w === 10 || w === 15 || w === 18 || w === 20);
       if (isBossWave) return;
       waveEvent = w >= 6 && !isBossWave ? (w % 3 === 0 ? 'post' : w % 3 === 1 ? 'rush' : null) : null;
-      if (waveEvent) announce(waveEvent === 'post' ? '✉ OBLĘŻENIE POCZTY — atak z dwóch stron!' : '⚡ SPRINT EKOLUDKÓW — broń domu!');
+      if (w >= 16) announce('MŁODZIEŻ BANDYCKA — UWAŻAJ NA BELWEDER!');
+      else if (waveEvent) announce(waveEvent === 'post' ? '✉ OBLĘŻENIE POCZTY — atak z dwóch stron!' : '⚡ SPRINT EKOLUDKÓW — broń domu!');
       const count = w <= 3 ? [0, 3, 3, 4][w] : Math.min(8, 3 + Math.floor(w * 0.8));
       for (let i = 0; i < count; i++) {
         const dist = (w === 1) ? (130 + Math.random() * 25) : (150 + Math.random() * 35);
-        spawnEnemy(waveEvent === 'post' ? (i % 3 === 0 ? 'tank' : 'thrower') : waveEvent === 'rush' ? 'runner' : null, dist);
+        spawnEnemy(w >= 16 && i < 2 ? 'bandit' : waveEvent === 'post' ? (i % 3 === 0 ? 'tank' : 'thrower') : waveEvent === 'rush' ? 'runner' : null, dist);
       }
     }
 
@@ -1739,8 +1742,10 @@
     function updateNerko(dt) {
       if (!nerko) return;
       const n=nerko; n.cooldown=Math.max(0,n.cooldown-dt);
-      if (!n.target || n.target.hp <= 0 || !enemies.includes(n.target) || !isRanged(n.target)) {
-        n.target = enemies.filter(e => e.hp>0 && isRanged(e)).reduce((best,e) => !best || Math.hypot(e.x-n.x,e.z-n.z)<Math.hypot(best.x-n.x,best.z-n.z) ? e : best, null);
+      const ranged = enemies.filter(e => e.hp > 0 && isRanged(e));
+      const candidates = ranged.length ? ranged : enemies.filter(e => e.hp > 0 && !isBoss(e));
+      if (!candidates.includes(n.target)) {
+        n.target = candidates.reduce((best,e) => !best || Math.hypot(e.x-n.x,e.z-n.z)<Math.hypot(best.x-n.x,best.z-n.z) ? e : best, null);
       }
       n.angle += dt * 1.8;
       const tx=n.target ? n.target.x : player.x+Math.cos(n.angle)*26;
@@ -1768,7 +1773,7 @@
       }
     }
     const nerkoUpgrade = {id:'nerko',name:'🐕 Piesek Nerko',legendary:true,level:0,max:1,
-      desc:'LEGENDARNY · Owczarek poluje na jednego Listonosza lub M. Bandycką naraz. Ugryzienie co 0,65 s: 50% aktualnych obrażeń kulachy.',apply:spawnNerko};
+      desc:'LEGENDARNY · Owczarek gryzie jednego wroga naraz. Priorytet: dystansowi, potem pozostali zwykli wrogowie. Ugryzienie co 0,65 s: 50% aktualnych obrażeń kulachy.',apply:spawnNerko};
 
     function showLevelUpScreen() {
       playSound('levelup');
@@ -2215,6 +2220,7 @@
             }
             if (e.staggerTimer <= 0) {
                 e.isStaggered = false;
+                e.staggerImmuneUntil = gameTime + 4;
                 e.stagger = 0;
                 e.mesh.rotation.z = 0;
                 e.speed = e.enraged ? e.baseSpeed * 1.3 : e.baseSpeed;
@@ -2253,7 +2259,7 @@
         if (e.type === 'mexicano') {
             e.mexicanoCanTimer = (e.mexicanoCanTimer || 3) - dt;
             if (e.mexicanoCanTimer <= 0) {
-                e.mexicanoCanTimer = e.enraged ? 1.4 : 3.0;
+                e.mexicanoCanTimer = e.enraged ? 1.1 : 2.2;
                 const canMesh = createZubrCanMesh(1.3);
                 scene.add(canMesh);
                 const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
@@ -2265,7 +2271,7 @@
         if (e.type === 'major') {
             e.majorNitroTimer = (e.majorNitroTimer || 4) - dt;
             if (e.majorNitroTimer <= 0) {
-                e.majorNitroTimer = e.enraged ? 1.8 : 3.5;
+                e.majorNitroTimer = e.enraged ? 1.4 : 2.6;
                 const nMesh = createNitroMesh(1.3);
                 scene.add(nMesh);
                 const dir = new THREE.Vector2(player.x - e.x, player.z - e.z).normalize();
@@ -2300,14 +2306,14 @@
                     flashDamageVignette();
                     e.charging = false;
                     e.speed = e.enraged ? e.baseSpeed * 1.35 : e.baseSpeed;
-                    e.chargeCooldown = e.enraged ? 5 : 8;
+                    e.chargeCooldown = e.enraged ? 3.5 : 6;
                     setEnemyEmissive(e, 0x000000);
                     spawnParticles(player.x, player.z, mats.blood);
                 }
                 if (e.chargeTimer <= 0) {
                     e.charging = false;
                     e.speed = e.enraged ? e.baseSpeed * 1.35 : e.baseSpeed;
-                    e.chargeCooldown = e.enraged ? 5 : 8;
+                    e.chargeCooldown = e.enraged ? 3.5 : 6;
                     setEnemyEmissive(e, 0x000000);
                 }
                 continue;
@@ -2325,7 +2331,7 @@
         if (e.type === 'final_boss') {
             e.aoeCooldown -= dt;
             if (e.aoeCooldown <= 0) {
-                e.aoeCooldown = e.enraged ? 2.5 : 5.0;
+                e.aoeCooldown = e.enraged ? 2.0 : 3.8;
                 const cameraMarkerGroup = new THREE.Group();
                 const ringMarker = new THREE.Mesh(new THREE.CylinderGeometry(16, 16, 0.4, 32), new THREE.MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.4}));
                 ringMarker.position.y = 0.2;
@@ -2346,7 +2352,7 @@
         if (e.type === 'janol') {
             e.bottleSlowCooldown -= dt;
             if (e.bottleSlowCooldown <= 0) {
-                e.bottleSlowCooldown = e.enraged ? 2 : 4;
+                e.bottleSlowCooldown = e.enraged ? 1.5 : 3;
                 const bMesh = createBottleMesh('vodka', 1.3);
                 scene.add(bMesh);
                 const dir = new THREE.Vector2(-e.x, -e.z).normalize();
@@ -2452,8 +2458,8 @@
               enemies.forEach(e => {
                   if (!hit && e.hp > 0 && (!p.isGift || p.mesh.position.y <= 8) && Math.hypot(p.x - e.x, p.z - e.z) < e.radius + (p.isGift ? 12 : 4)) {
                       e.hp -= p.dmg; e.flashTimer = 0.1;
-                      if (p.reflected && isBoss(e)) {
-                          e.stagger = Math.min(e.maxStagger, e.stagger + e.maxStagger * 0.35);
+                      if (p.reflected && isBoss(e) && !e.isStaggered && gameTime >= (e.staggerImmuneUntil || 0)) {
+                          e.stagger = Math.min(e.maxStagger, e.stagger + e.maxStagger * 0.20);
                           if (e.stagger >= e.maxStagger) { e.isStaggered = true; e.staggerTimer = 3.5; }
                       }
                       if (p.isCoal && player.explosiveCoal) {
@@ -2605,7 +2611,7 @@
                   if (isBoss) {
                       if (e.isStaggered) {
                           dmgDone = Math.floor(dmgDone * 1.5);
-                      } else {
+                      } else if (gameTime >= (e.staggerImmuneUntil || 0)) {
                           e.stagger = (e.stagger || 0) + dmgDone * 0.4;
                           if (e.stagger >= e.maxStagger) {
                               e.isStaggered = true;
@@ -2638,7 +2644,7 @@
                   if (isBoss) {
                       if (e.isStaggered) {
                           dmgDone = Math.floor(dmgDone * 1.5);
-                      } else {
+                      } else if (gameTime >= (e.staggerImmuneUntil || 0)) {
                           e.stagger = (e.stagger || 0) + dmgDone * 0.4;
                           if (e.stagger >= e.maxStagger) {
                               e.isStaggered = true;
@@ -2854,7 +2860,7 @@
                   if (isBoss) {
                       if (e.isStaggered) {
                           finalDmg = Math.floor(finalDmg * 1.5); // +50% bonus podczas ogłuszenia
-                      } else {
+                      } else if (gameTime >= (e.staggerImmuneUntil || 0)) {
                           e.stagger = (e.stagger || 0) + finalDmg * 0.7;
                           if (e.stagger >= e.maxStagger) {
                               e.isStaggered = true;

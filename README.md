@@ -15,7 +15,7 @@ Gra przeglądarkowa w jednym pliku HTML, z Three.js r128. Otwórz `index.html` w
 - Działające podpalenie, rzut węglem i eksplozje węgla. Wybuchowy Węgiel pojawia się dopiero po zdobyciu Rzutu Węglem.
 - Maksymalny Rzut Węglem + Wybuchowy Węgiel: eksplozja wypuszcza sześć odłamków.
 - Maksymalne Latające Mleczko + Mleczna Tarcza: przechwycenie pocisku co sześć sekund; jedna butelka znika podczas odnowienia.
-- Początek zamachu odbija wrogie pociski z podwójnymi obrażeniami. Odbity pocisk zwiększa ogłuszenie bossa o 35% progu.
+- Początek zamachu odbija wrogie pociski z podwójnymi obrażeniami. Odbity pocisk zwiększa ogłuszenie bossa o 20% progu.
 - Fale specjalne: Oblężenie Poczty (Listonosze i MOPS z dwóch stron) oraz Sprint Ekoludków. Przeplatają się ze zwykłymi falami, z pominięciem fal bossów.
 - Bossowie zatrzymują zegar fal. Mają indywidualne HP bez dodatkowego mnożnika fali. Zwycięstwo uruchamia kolejną falę po wyborze nagrody.
 - Combo zwiększa mnożnik punktów do ×5. Pięć najlepszych wyników zapisuje się lokalnie w przeglądarce. Tryb WARMIA nie trafia do rankingu.
@@ -41,3 +41,7 @@ Fale 1–3 zaczynają się od 3, 3 i 4 przeciwników; dodatkowi wrogowie pojawia
 ## Legendarny Piesek Nerko
 
 Od fali 15 każdy wybór ulepszenia ma 25% szansy na złotą kartę Pieska Nerko (zastępuje jedną ze zwykłych kart). Można go zdobyć tylko raz w rozgrywce. Owczarek niemiecki ściga najbliższego żywego Listonosza lub Młodzież Bandycką i utrzymuje cel do jego śmierci. Gryzie jednego wroga co 0,65 s, zadając połowę aktualnych bazowych obrażeń Konona, bez krytyków i efektów kulachy. Nie otrzymuje obrażeń; bez celu biega wokół gracza. Restart usuwa towarzysza.
+
+## Presja bossów i cele Nerko
+
+Bossowie mają o 35% więcej HP i o 25% większą prędkość niż poprzednio oraz częściej używają umiejętności. Próg ogłuszenia wzrósł o 50%, a po jego zakończeniu boss przez 4 s nie zbiera nowego staggeru (nadal otrzymuje obrażenia). Odbicie pocisku daje 20% progu staggeru. Każda zwykła fala od 16 zaczyna się z co najmniej dwoma M. Bandyckimi. Nerko przy braku dystansowych atakuje innych zwykłych wrogów, ale nie bossów; pojawienie się dystansowego natychmiast zmienia jego priorytet.
