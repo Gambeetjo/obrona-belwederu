@@ -1242,6 +1242,24 @@
           briefcase.scale.set(w*0.2, h*0.4, d*0.6); briefcase.position.set(w/2 + w*0.3, yOff - h*0.2, d*0.3); briefcase.castShadow = true;
           group.add(briefcase);
       } else if (type === 'runner') {
+          // High-visibility vest: readable from the overhead camera, front and back.
+          const vestMat = new THREE.MeshStandardMaterial({color: 0xd4f52b, roughness: 0.85});
+          const reflectiveMat = new THREE.MeshBasicMaterial({color: 0xe3edf0});
+          const trimMat = new THREE.MeshStandardMaterial({color: 0x414943, roughness: 1});
+          function vestPart(material, size, position) {
+              const part = new THREE.Mesh(geos.box, material);
+              part.scale.set(...size); part.position.set(...position);
+              body.add(part); return part;
+          }
+          // Dimensions are relative to the scaled torso; the vest follows its run animation.
+          vestPart(vestMat, [1.07, 0.9, 1.08], [0, 0.03, 0]);
+          for (const y of [-0.21, 0.04]) {
+              vestPart(reflectiveMat, [1.09, 0.09, 1.10], [0, y, 0]);
+          }
+          for (const x of [-0.29, 0.29]) {
+              vestPart(reflectiveMat, [0.14, 0.43, 1.11], [x, 0.28, 0]);
+          }
+          vestPart(trimMat, [0.065, 0.88, 0.025], [0, 0.03, 0.565]);
           const glassesMat = new THREE.MeshStandardMaterial({color: 0x111111});
           const glasses = new THREE.Mesh(geos.box, glassesMat); glasses.scale.set(w*0.9, h*0.15, d*0.9); glasses.position.set(0, yOff + h/2 + h*0.2, 0);
           group.add(glasses);
