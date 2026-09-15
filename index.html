@@ -248,6 +248,14 @@
     #pause-btn, #mobile-help-btn { min-width: 44px; min-height: 44px; color: #fff1b8; background: #1b3340; border: 2px solid #fff1b8; font-size: 22px; }
     @media (max-width: 768px) { #boss-hud { top: 110px; } #wave-event-banner { top: 190px; } #boss-intro-name { font-size: clamp(18px, 5vw, 32px); } #boss-intro-sub { font-size: 10px; } #start-screen > div { flex-wrap: wrap; justify-content: center; } }
     @media (max-height: 500px) { .screen { justify-content: flex-start; } #boss-hud { top: 105px; } .bonus-card { width: 29%; min-width: 150px; } }
+    .bonus-card { position: relative; overflow: hidden; padding-bottom: 23px; }
+    .bonus-card::after { content: ''; position: absolute; left: 0; bottom: 0; width: 100%; height: 7px; background: #ffd75a; transform: scaleX(0); transform-origin: left; }
+    .bonus-card.holding::after { transform: scaleX(1); transition: transform 1s linear; }
+    .bonus-card:focus-visible { outline: 3px solid #ffd75a; outline-offset: 4px; }
+    @media (max-width: 768px), (pointer: coarse) {
+      #combo-display { top: auto; bottom: 135px; font-size: 12px; max-width: 90vw; text-align: center; line-height: 1.5; text-shadow: 1px 1px #000; animation: none !important; }
+      .bonus-card:hover { transform: none; }
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -329,7 +337,7 @@
     </div>
     <div id="levelup-screen" class="screen hidden">
       <h1>AWANS!</h1>
-      <p>Wybierz bonus. Maks. Węgiel + Wybuchowy Węgiel = odłamki. Maks. Mleczko + Mleczna Tarcza = osłona pocisków.</p>
+      <p>Przytrzymaj kartę przez 1 sekundę, aby wybrać bonus. Maks. Węgiel + Wybuchowy Węgiel = odłamki. Maks. Mleczko + Mleczna Tarcza = osłona pocisków.</p>
       <div id="bonus-cards"></div>
     </div>
     <div id="mobile-controls" class="hidden">
@@ -826,6 +834,7 @@
       house.lastHitTime = gameTime;
     }
     function resetInput() {
+      cancelUpgradeHold();
       Object.keys(keys).forEach(k => keys[k] = false);
       joystick.active = false; joystick.x = joystick.y = 0;
       joystickPointer = null; attackPointers.clear(); isAttackingPressed = false;
@@ -1375,7 +1384,7 @@
       const isBossWave = (w === 5 || w === 10 || w === 15 || w === 18 || w === 20);
       if (isBossWave) return;
       waveEvent = w >= 6 && !isBossWave ? (w % 3 === 0 ? 'post' : w % 3 === 1 ? 'rush' : null) : null;
-      if (w >= 16) announce('MŁODZIEŻ BANDYCKA — UWAŻAJ NA BELWEDER!');
+      if (w >= 16) announce('M.BANDYCKA — UWAŻAJ NA BELWEDER!');
       else if (waveEvent) announce(waveEvent === 'post' ? '✉ OBLĘŻENIE POCZTY — atak z dwóch stron!' : '⚡ SPRINT EKOLUDKÓW — broń domu!');
       const count = w <= 3 ? [0, 3, 3, 4][w] : Math.min(8, 3 + Math.floor(w * 0.8));
       for (let i = 0; i < count; i++) {
@@ -1775,6 +1784,51 @@
     const nerkoUpgrade = {id:'nerko',name:'🐕 Piesek Nerko',legendary:true,level:0,max:1,
       desc:'LEGENDARNY · Owczarek gryzie jednego wroga naraz. Priorytet: dystansowi, potem pozostali zwykli wrogowie. Ugryzienie co 0,65 s: 50% aktualnych obrażeń kulachy.',apply:spawnNerko};
 
+    let upgradeHold = null;
+    function cancelUpgradeHold() {
+      if (!upgradeHold) return;
+      clearTimeout(upgradeHold.timer);
+      upgradeHold.card.classList.remove('holding');
+      upgradeHold = null;
+    }
+    function bindUpgradeHold(card, choose) {
+      card.tabIndex = 0; card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', card.textContent + '. Przytrzymaj przez sekundę.');
+      let chosen = false;
+      function start(pointerId = null, key = null) {
+        if (chosen || gameState !== 'levelup') return;
+        if (upgradeHold?.card === card) return;
+        cancelUpgradeHold();
+        card.classList.add('holding');
+        const hold = {card, pointerId, key, timer: null};
+        upgradeHold = hold;
+        hold.timer = setTimeout(() => {
+          if (upgradeHold !== hold || gameState !== 'levelup' || !card.isConnected || document.hidden) { cancelUpgradeHold(); return; }
+          chosen = true; cancelUpgradeHold(); choose();
+        }, 1000);
+      }
+      card.addEventListener('pointerdown', e => {
+        if (e.button !== 0) return;
+        e.preventDefault(); card.focus(); start(e.pointerId); card.setPointerCapture(e.pointerId);
+      });
+      card.addEventListener('pointermove', e => {
+        if (upgradeHold?.card !== card || upgradeHold.pointerId !== e.pointerId) return;
+        const r = card.getBoundingClientRect();
+        if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) cancelUpgradeHold();
+      });
+      for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) card.addEventListener(event, e => {
+        if (upgradeHold?.card === card && upgradeHold.pointerId === e.pointerId) cancelUpgradeHold();
+      });
+      card.addEventListener('keydown', e => {
+        if (e.key !== ' ' && e.key !== 'Enter') return;
+        e.preventDefault(); e.stopPropagation(); if (!e.repeat) start(null, e.key);
+      });
+      card.addEventListener('keyup', e => {
+        if (upgradeHold?.card === card && upgradeHold.key === e.key) cancelUpgradeHold();
+      });
+      card.addEventListener('blur', () => { if (upgradeHold?.card === card) cancelUpgradeHold(); });
+    }
+
     function showLevelUpScreen() {
       playSound('levelup');
       resetInput(); gameState = 'levelup'; updateMobileControlsVisibility(); document.getElementById('levelup-screen').classList.remove('hidden');
@@ -1786,16 +1840,16 @@
       if (available.length === 0) {
           const card = document.createElement('div'); card.className = 'bonus-card';
           card.innerHTML = `<strong>Kromka Chleba</strong><small>Leczy 50 HP.</small>`;
-          card.onclick = () => { player.hp = Math.min(player.maxHp, player.hp + 50); resumeGame(); };
+          bindUpgradeHold(card, () => { player.hp = Math.min(player.maxHp, player.hp + 50); resumeGame(); });
           container.appendChild(card); return;
       }
       available.forEach(bonus => {
         const card = document.createElement('div'); card.className = 'bonus-card';
         if (bonus.legendary) card.classList.add('legendary');
         card.innerHTML = `<strong>${bonus.name} (Lvl ${bonus.level+1}/${bonus.max})</strong><small>${bonus.desc}</small>`;
-        card.onclick = () => { bonus.level++; bonus.apply(); resumeGame();
+        bindUpgradeHold(card, () => { bonus.level++; bonus.apply(); resumeGame();
           if ((bonus.id === 'coal' || bonus.id === 'explosiveCoal') && player.coalLevel >= 4 && player.explosiveCoal) announce('EWOLUCJA: WĘGIEL Z ODŁAMKAMI!');
-          if ((bonus.id === 'flyingMilk' || bonus.id === 'vampiricMilk') && flyingMilks.length >= 5 && player.shieldLevel) announce('EWOLUCJA: MLECZNA OSŁONA!'); }; container.appendChild(card);
+          if ((bonus.id === 'flyingMilk' || bonus.id === 'vampiricMilk') && flyingMilks.length >= 5 && player.shieldLevel) announce('EWOLUCJA: MLECZNA OSŁONA!'); }); container.appendChild(card);
       });
     }
 
