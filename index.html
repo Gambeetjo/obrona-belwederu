@@ -250,18 +250,20 @@
     @media (max-height: 500px) { .screen { justify-content: flex-start; } #boss-hud { top: 105px; } .bonus-card { width: 29%; min-width: 150px; } }
     .bonus-card { position: relative; overflow: hidden; padding-bottom: 23px; }
     .bonus-card::after { content: ''; position: absolute; left: 0; bottom: 0; width: 100%; height: 7px; background: #ffd75a; transform: scaleX(0); transform-origin: left; }
-    .bonus-card.holding::after { transform: scaleX(1); transition: transform 1s linear; }
+    .bonus-card.holding::after { transform: scaleX(1); transition: transform 0.6s linear; }
     .bonus-card:focus-visible { outline: 3px solid #ffd75a; outline-offset: 4px; }
     @media (max-width: 768px), (pointer: coarse) {
       #combo-display { top: auto; bottom: 135px; font-size: 12px; max-width: 90vw; text-align: center; line-height: 1.5; text-shadow: 1px 1px #000; animation: none !important; }
       .bonus-card:hover { transform: none; }
     }
+    #ending-dialogue { position: fixed; z-index: 120; bottom: max(10vh, 24px); left: 50%; transform: translateX(-50%); width: min(90vw, 780px); padding: 22px; border: 4px solid #ffd75a; background: rgba(10,20,28,.96); color: #fff1b8; font-size: clamp(16px, 3.4vw, 28px); line-height: 1.7; text-align: center; white-space: pre-line; box-shadow: 0 5px 24px #000b; pointer-events: none; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
   <div id="game-container"></div>
+  <div id="ending-dialogue" class="hidden" role="status" aria-live="polite"></div>
   <div id="joystick-visual" hidden></div>
   <div id="damage-vignette" style="position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(200,0,0,0.6) 100%);transition:opacity 0.08s;"></div>
   <div id="ui-overlay">
@@ -337,7 +339,7 @@
     </div>
     <div id="levelup-screen" class="screen hidden">
       <h1>AWANS!</h1>
-      <p>Przytrzymaj kartę przez 1 sekundę, aby wybrać bonus. Maks. Węgiel + Wybuchowy Węgiel = odłamki. Maks. Mleczko + Mleczna Tarcza = osłona pocisków.</p>
+      <p>Przytrzymaj kartę przez 0,6 sekundy, aby wybrać bonus. Maks. Węgiel + Wybuchowy Węgiel = odłamki. Maks. Mleczko + Mleczna Tarcza = osłona pocisków.</p>
       <div id="bonus-cards"></div>
     </div>
     <div id="mobile-controls" class="hidden">
@@ -1662,7 +1664,11 @@
         damageVignetteTimer = 0.15;
     }
 
+    function setEndingDialogue(text = '') {
+      const el = document.getElementById('ending-dialogue'); el.textContent = text; el.classList.toggle('hidden', !text);
+    }
     function initGame() {
+      setEndingDialogue();
       clearNerko(); nerkoUpgrade.level = 0;
       startBGM();
       enemies.forEach(e => removeFromScene(e.mesh)); enemies = [];
@@ -1793,7 +1799,7 @@
     }
     function bindUpgradeHold(card, choose) {
       card.tabIndex = 0; card.setAttribute('role', 'button');
-      card.setAttribute('aria-label', card.textContent + '. Przytrzymaj przez sekundę.');
+      card.setAttribute('aria-label', card.textContent + '. Przytrzymaj przez 0,6 sekundy.');
       let chosen = false;
       function start(pointerId = null, key = null) {
         if (chosen || gameState !== 'levelup') return;
@@ -1805,7 +1811,7 @@
         hold.timer = setTimeout(() => {
           if (upgradeHold !== hold || gameState !== 'levelup' || !card.isConnected || document.hidden) { cancelUpgradeHold(); return; }
           chosen = true; cancelUpgradeHold(); choose();
-        }, 1000);
+        }, 600);
       }
       card.addEventListener('pointerdown', e => {
         if (e.button !== 0) return;
@@ -1939,23 +1945,14 @@
               } else {
                   ambulance.mesh.position.x = ambulance.targetX;
                   ambulance.step = 1; ambulance.timer = 0;
-                  ambulance.label1 = createTextSprite("DO CHOROSZCZY!");
-                  ambulance.label1.position.set(ambulance.mesh.position.x, 18, ambulance.mesh.position.z);
-                  scene.add(ambulance.label1);
-                  ambulance.label2 = createTextSprite("NA BADANIA?");
-                  ambulance.label2.position.set(player.x, 18, player.z);
-                  scene.add(ambulance.label2);
+                  setEndingDialogue('SANITARIUSZ: DO CHOROSZCZY!\nKONON: NA BADANIA?');
               }
-          } else if (ambulance.step === 1 && ambulance.timer > 2.5) {
+          } else if (ambulance.step === 1 && ambulance.timer > 4) {
               ambulance.step = 2; ambulance.timer = 0;
-              removeFromScene(ambulance.label2);
-              removeFromScene(ambulance.label1);
-              ambulance.label3 = createTextSprite("NA STALE!");
-              ambulance.label3.position.set(ambulance.mesh.position.x, 18, ambulance.mesh.position.z);
-              scene.add(ambulance.label3);
-          } else if (ambulance.step === 2 && ambulance.timer > 2.5) {
+              setEndingDialogue('SANITARIUSZ: NA STAŁE!');
+          } else if (ambulance.step === 2 && ambulance.timer > 4) {
               ambulance.step = 3; ambulance.timer = 0;
-              removeFromScene(ambulance.label3);
+              setEndingDialogue();
               if (player.mesh) player.mesh.visible = false;
               if (player.rangeMesh) player.rangeMesh.visible = false;
           } else if (ambulance.step === 3) {
@@ -1966,7 +1963,7 @@
               }
           } else if (ambulance.step === 4) {
               stopBGM();
-              gameState = 'gameover'; saveResult(); resetInput(); updateMobileControlsVisibility();
+              setEndingDialogue(); gameState = 'gameover'; saveResult(); resetInput(); updateMobileControlsVisibility();
               document.getElementById('hud').classList.add('hidden'); document.getElementById('gameover-screen').classList.remove('hidden');
               document.getElementById('gameover-reason').innerText = "Wygrałeś! Konon zabrany do Choroszczy na stałe!";
               document.getElementById('final-stats').innerHTML = `Przetrwane fale: <strong>${wave}</strong><br>Punkty: <strong>${score}</strong>`;
@@ -2755,7 +2752,7 @@
 
       if (player.hp <= 0 || house.hp <= 0) {
           stopBGM();
-          gameState = 'gameover'; saveResult(); resetInput(); updateMobileControlsVisibility();
+          setEndingDialogue(); gameState = 'gameover'; saveResult(); resetInput(); updateMobileControlsVisibility();
           updateMobileControlsVisibility();
           document.getElementById('hud').classList.add('hidden'); document.getElementById('gameover-screen').classList.remove('hidden');
           document.getElementById('gameover-reason').innerText = (player.hp <= 0) ? "Młodzież bandycka cię ukróciła!" : "Domek drewniany rozwalony całkowicie!";
