@@ -45,3 +45,7 @@ Od fali 15 każdy wybór ulepszenia ma 25% szansy na złotą kartę Pieska Nerko
 ## Presja bossów i cele Nerko
 
 Bossowie mają o 35% więcej HP i o 25% większą prędkość niż poprzednio oraz częściej używają umiejętności. Próg ogłuszenia wzrósł o 50%, a po jego zakończeniu boss przez 4 s nie zbiera nowego staggeru (nadal otrzymuje obrażenia). Odbicie pocisku daje 20% progu staggeru. Każda zwykła fala od 16 zaczyna się z co najmniej dwoma M. Bandyckimi. Nerko przy braku dystansowych atakuje innych zwykłych wrogów, ale nie bossów; pojawienie się dystansowego natychmiast zmienia jego priorytet.
+
+## Muzyka
+
+Podkład: „Robi - Moje miasto to Białystok (NES VRC6 cover)”, plik dostarczony przez właściciela projektu. Gra odtwarza go w pętli przy głośności 25%, od rozpoczęcia rozgrywki do jej zakończenia. Plik: `assets/audio/moje-miasto-bialystok-vrc6.mp3`. Efekty dźwiękowe pozostają osobne.

@@ -360,8 +360,10 @@
   <script>
     // --- AUDIO SYSTEM ---
     let audioCtx = null;
-    let bgmOsc = null;
-    let bgmGain = null;
+    const bgm = new Audio('assets/audio/moje-miasto-bialystok-vrc6.mp3');
+    bgm.loop = true;
+    bgm.volume = 0.25;
+    bgm.preload = 'none';
 
     function initAudio() {
         if (!audioCtx) {
@@ -377,25 +379,14 @@
 
     function startBGM() {
         initAudio();
-        if (!audioCtx || bgmOsc) return;
-        bgmOsc = audioCtx.createOscillator();
-        bgmGain = audioCtx.createGain();
-        bgmOsc.type = 'sine';
-        bgmOsc.frequency.value = 55; // Low frequency drone
-        bgmGain.gain.value = 0.03;
-        bgmOsc.connect(bgmGain);
-        bgmGain.connect(audioCtx.destination);
-        bgmOsc.start();
+        bgm.currentTime = 0;
+        // Playback starts from the user's Start/Restart gesture, including on mobile.
+        bgm.play().catch(() => { /* The game remains playable if media is blocked. */ });
     }
 
     function stopBGM() {
-        if (bgmOsc) {
-            bgmOsc.stop();
-            bgmOsc.disconnect();
-            bgmGain.disconnect();
-            bgmOsc = null;
-            bgmGain = null;
-        }
+        bgm.pause();
+        bgm.currentTime = 0;
     }
 
     function playSound(type) {
